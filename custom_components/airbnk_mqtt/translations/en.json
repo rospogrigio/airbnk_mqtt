@@ -1,0 +1,36 @@
+{
+    "config": {
+        "abort": {
+            "already_configured": "The integration is already configured.",
+            "cannot_connect": "Failed to connect to Daikin Cloud.",
+            "init_failed": "Failed to initialize Daikin API.",
+            "code_request_failed": "Failed to request verification code.",
+            "token_retrieval_failed": "Failed to retrieve access token."
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "device_fail": "Unexpected error",
+            "device_timeout": "Failed to connect",
+            "forbidden": "Invalid authentication",
+            "invalid_auth": "Invalid authentication",
+            "unknown": "Unexpected error"
+        },
+        "step": {
+            "user": {
+                "data": {
+		  "email": "Email address"
+                },
+	        "description": "Enter the email address you use to login to Airbnk Cloud, then press Submit to request a verification code.",
+                "title": "Configure Airbnk Lock"
+            },
+            "verify": {
+              "title": "Enter verification code",
+              "description": "Enter the code you received via email, then press Submit to complete the procedure.",
+              "data": {
+		"email": "Email address",
+                "code": "Verification code"
+              }
+            }
+        }
+    }
+}
