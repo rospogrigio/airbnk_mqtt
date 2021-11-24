@@ -3,12 +3,11 @@ import datetime
 import functools
 import logging
 import requests
-import uuid
 
 from homeassistant.util import Throttle
 from homeassistant.const import CONF_TOKEN
 
-from .const import DOMAIN, AIRBNK_DEVICES, CONF_USERID, CONF_LOCKSTATUS, CONF_MQTT_TOPIC, CONF_MAC_ADDRESS
+from .const import CONF_MQTT_TOPIC, CONF_MAC_ADDRESS
 
 _LOGGER = logging.getLogger(__name__)
 

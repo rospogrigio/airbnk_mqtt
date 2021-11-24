@@ -3,7 +3,6 @@
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
     CONF_TOKEN,
-    CONF_ICON,
     CONF_NAME,
     CONF_TYPE,
     CONF_UNIT_OF_MEASUREMENT,
@@ -34,13 +33,13 @@ LOCK_STATE_JAMMED = 2
 LOCK_STATE_OPERATING = 3
 LOCK_STATE_FAILED = 4
 
-LOCK_STATE_STRINGS = { 
+LOCK_STATE_STRINGS = {
     LOCK_STATE_LOCKED: "Locked",
     LOCK_STATE_UNLOCKED: "Unlocked",
     LOCK_STATE_JAMMED: "Jammed",
     LOCK_STATE_OPERATING: "Operating",
     LOCK_STATE_FAILED: "Failed",
- }
+}
 
 SENSOR_TYPE_STATE = "state"
 SENSOR_TYPE_BATTERY = "battery"

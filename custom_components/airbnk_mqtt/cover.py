@@ -5,7 +5,6 @@ from homeassistant.components.cover import SUPPORT_CLOSE, SUPPORT_OPEN, CoverEnt
 
 from .const import (
     DOMAIN as AIRBNK_DOMAIN,
-    AIRBNK_API,
     AIRBNK_DEVICES,
     LOCK_STATE_LOCKED,
     LOCK_STATE_UNLOCKED,
@@ -16,13 +15,13 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-LOCK_STATE_ICONS = { 
+LOCK_STATE_ICONS = {
     LOCK_STATE_LOCKED: "hass:door-closed-lock",
     LOCK_STATE_UNLOCKED: "hass:door-closed",
     LOCK_STATE_JAMMED: "hass:lock-question",
     LOCK_STATE_OPERATING: "hass:lock-reset",
     LOCK_STATE_FAILED: "hass:lock-alert",
- }
+}
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
@@ -112,14 +111,12 @@ class AirbnkLock(CoverEntity):
     async def async_open_cover(self, **kwargs):
         """Open the cover."""
         _LOGGER.debug("Launching command to open")
-        res = await self._device.operateLock(1)
-        # raise Exception(res)
+        await self._device.operateLock(1)
 
     async def async_close_cover(self, **kwargs):
         """Close cover."""
         _LOGGER.debug("Launching command to close")
-        res = await self._device.operateLock(2)
-        # raise Exception(res)
+        await self._device.operateLock(2)
 
     async def async_stop_cover(self, **kwargs):
         """Stop the cover."""

@@ -1,28 +1,8 @@
 """Support for Airbnk sensors."""
 from __future__ import annotations
-import asyncio
-import datetime
-import binascii
-from homeassistant.helpers.config_validation import service
-import time
-import hashlib
-from typing import Callable
-
-# from Crypto.Cipher import AES
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-
-import base64
-import json
-
-import voluptuous as vol
-from voluptuous.schema_builder import Self
-
 import logging
 
 from homeassistant.helpers.entity import Entity
-from homeassistant.components import mqtt
-from homeassistant.core import HomeAssistant, ServiceCall, callback
 
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
@@ -30,24 +10,17 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_TYPE,
     CONF_UNIT_OF_MEASUREMENT,
-    PERCENTAGE,
-    CONTENT_TYPE_TEXT_PLAIN,
 )
 
 from .const import (
-    DOMAIN,
     DOMAIN as AIRBNK_DOMAIN,
-    AIRBNK_API,
     AIRBNK_DEVICES,
-    CONF_LOCKSTATUS,
     SENSOR_TYPE_STATE,
     SENSOR_TYPE_BATTERY,
     SENSOR_TYPE_EVENTS,
     SENSOR_TYPE_LAST_ADVERT,
     SENSOR_TYPES,
 )
-
-from .lock_device import AirbnkLockMqttDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +43,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
             sensor = AirbnkSensor.factory(hass, device, sensor_type)
             sensors.append(sensor)
     async_add_entities(sensors)
+
 
 class AirbnkSensor(Entity):
     """Representation of a Sensor."""
@@ -109,11 +83,6 @@ class AirbnkSensor(Entity):
         """Return a unique ID."""
         devID = self._device._lockConfig["sn"]
         return f"{devID}_{self._monitored_attribute}"
-
-    @property
-    def icon(self):
-        """Icon to use in the frontend, if any."""
-        return SENSOR_ICON
 
     @property
     def name(self):
@@ -171,4 +140,3 @@ class AirbnkTextSensor(AirbnkSensor):
         if self._monitored_attribute in self._device._lockData:
             return self._device._lockData[self._monitored_attribute]
         return None
-

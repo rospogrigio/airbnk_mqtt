@@ -4,13 +4,11 @@ import datetime
 import logging
 import voluptuous as vol
 
-from homeassistant.const import CONF_TOKEN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
 
-from .const import DOMAIN, AIRBNK_API, AIRBNK_DEVICES, CONF_USERID, CONF_DEVICE_CONFIGS
+from .const import DOMAIN, AIRBNK_DEVICES, CONF_DEVICE_CONFIGS
 
-from .airbnk_api import AirbnkApi
 from .lock_device import AirbnkLockMqttDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -29,8 +27,8 @@ MIN_TIME_BETWEEN_UPDATES = datetime.timedelta(seconds=15)
 
 COMPONENT_TYPES = ["cover", "sensor"]
 
-
 CONFIG_SCHEMA = vol.Schema(vol.All({DOMAIN: vol.Schema({})}), extra=vol.ALLOW_EXTRA)
+
 
 async def async_setup(hass, config):
     """Setup the Airbnk component."""
@@ -56,9 +54,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     _LOGGER.debug("DEVICES ARE %s", device_configs)
     lock_devices = {}
     for dev_id, dev_config in device_configs.items():
-        lock_devices[dev_id] = AirbnkLockMqttDevice(
-            hass, dev_config, dev_config["mac_address"] # , "5893D8424E3A"
-        )
+        lock_devices[dev_id] = AirbnkLockMqttDevice(hass, dev_config)
         await lock_devices[dev_id].mqtt_subscribe()
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
