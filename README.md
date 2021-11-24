@@ -1,11 +1,22 @@
+[![](https://img.shields.io/github/release/rospogrigio/airbnk/all.svg?style=for-the-badge)](https://github.com/rospogrigio/airbnk/releases)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![](https://img.shields.io/badge/MAINTAINER-%40rospogrigio-green?style=for-the-badge)](https://github.com/rospogrigio)
+
 # Airbnk lock MQTT-based HomeAssistant integration
 
 MQTT-based control of Airbnk smart locks that are supported by Airbnk (now WeHere) app.
 
-Supported devices (using the gateway W100):
+Supported devices (using an ESP32 device as a Wifi-to-Bluetooth bridge):
 - M300
 - M500
 - M510 (only device tested so far)
+
+# Prerequisites:
+
+1. Have an ESP32 device with Tasmota Bluetooth firmware installed (see tasmota32-bluetooth.bin here: http://ota.tasmota.com/tasmota32/release/ for release version or here http://ota.tasmota.com/tasmota32/ for development version).
+2. Set up a MQTT broker (mosquitto or HA add-on: see https://www.home-assistant.io/docs/mqtt/broker/).
+3. Configure the ESP32 to connect to it. In the MQTT Configuration page, take note of the MQTT topic of the ESP32, or set it at your desire.
+4. Determine the MAC address of your lock.
 
 # Installation:
 
@@ -31,7 +42,7 @@ After pressing the "Submit" button, you will receive a verification code via ema
 
 Once you press submit and confirm, the Integration will be added, and the Airbnk locks successfully configured will be created. For each lock, 2 entities are created:
 - a Cover entity, that allows to operate the lock
-- a Sensor entity, that provides the status of the lock (actually, the outcome of the last command attempt). If the command times out, the sensor will present the "Timed out" status.
+- several Sensor entities, that provides the status of the lock, the battery percentage and other utility info. If the command times out, the status sensor will present the "Failed" status.
 
 # Note:
 
@@ -41,8 +52,9 @@ As a consequence, the Cover entity is used being deemed more suitable, because i
 
 # To-do list:
 
-* Figure out whether it's possible to have information about the battery status.
+* Improve Tasmota stability (maybe recompiling the firmware?).
+* Introduce the usage of ESPHome instead of Tasmota, and perform benchmarking of the two approaches in order to select the most fast/stable.
 
 # Thanks to:
 
-This code is based on @nourmehdi 's great work, in finding a way to sniff the traffic and retrieve the token and understand the API calls to be used.
+This code is based on @nourmehdi 's great work, in finding a way to sniff the traffic and retrieve the token and decompile the app in order to find out the lock codes generation algorithm. This integration would probably not exist without his pioneering and support.
