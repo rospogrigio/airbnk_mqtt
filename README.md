@@ -27,7 +27,7 @@ Follow the instructions: in the first dialog, you just have to type the email us
 
 After pressing the "Submit" button, you will receive a verification code via email that has to be typed into the second dialog. After pressing Submit, the integration will download the info of your device(s) from the cloud, including the necessary keys for encrypting the commands for the lock. Then, for each registered lock device you'll be prompted to input its MQTT topic (see Prerequisites, #3) and MAC address (see Prerequisites, #4). It is also possible to skip the device in order to avoid adding it to HA:
 
-![config_device](https://user-images.githubusercontent.com/49229287/143319079-37b64229-1a6f-45f9-9f27-cc287a2c15a5.png)
+![config_device](https://user-images.githubusercontent.com/49229287/143319300-26071cf6-84f4-4cb6-a6f5-f9b53bef0330.png)
 
 Once you press submit and confirm, the Integration will be added, and the Airbnk locks successfully configured will be created. For each lock, 2 entities are created:
 - a Cover entity, that allows to operate the lock
