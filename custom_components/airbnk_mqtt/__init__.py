@@ -4,12 +4,14 @@ import datetime
 import logging
 import voluptuous as vol
 
+from homeassistant.const import CONF_TOKEN
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
 
-from .const import DOMAIN, AIRBNK_API, AIRBNK_DEVICES
+from .const import DOMAIN, AIRBNK_API, AIRBNK_DEVICES, CONF_USERID, CONF_DEVICE_CONFIGS
 
 from .airbnk_api import AirbnkApi
+from .lock_device import AirbnkLockMqttDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -30,9 +32,8 @@ COMPONENT_TYPES = ["cover", "sensor"]
 
 CONFIG_SCHEMA = vol.Schema(vol.All({DOMAIN: vol.Schema({})}), extra=vol.ALLOW_EXTRA)
 
-
 async def async_setup(hass, config):
-    """Setup the Airbnk Residential component."""
+    """Setup the Airbnk component."""
 
     if DOMAIN not in config:
         return True
@@ -51,10 +52,15 @@ async def async_setup(hass, config):
 async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     """Establish connection with Airbnk."""
 
-    airbnk_api = AirbnkApi(hass, entry)
-
-    devices = await airbnk_api.getCloudDevices()
-    hass.data[DOMAIN] = {AIRBNK_API: airbnk_api, AIRBNK_DEVICES: devices}
+    device_configs = entry.data[CONF_DEVICE_CONFIGS]
+    _LOGGER.debug("DEVICES ARE %s", device_configs)
+    lock_devices = {}
+    for dev_id, dev_config in device_configs.items():
+        lock_devices[dev_id] = AirbnkLockMqttDevice(
+            hass, dev_config, dev_config["mac_address"] # , "5893D8424E3A"
+        )
+        await lock_devices[dev_id].mqtt_subscribe()
+    hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
     for component in COMPONENT_TYPES:
         hass.async_create_task(

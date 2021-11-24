@@ -1,6 +1,6 @@
 {
   "domain": "airbnk_mqtt",
-  "name": "Airbnk lock MQTT-based integration",
+  "name": "Airbnk lock (MQTT-based)",
   "version": "1.0.0",
   "documentation": "https://github.com/rospogrigio/airbnk_mqtt/",
   "dependencies": ["mqtt"],

@@ -30,7 +30,21 @@
 		"email": "Email address",
                 "code": "Verification code"
               }
-            }
+            },
+            "configure_device": {
+              "title": "Enter device parameters",
+              "description": "Enter the MAC address and topic for MQTT connection with {model} lock, s/n {sn}.",
+              "data": {
+		"mac_address": "MAC address",
+		"mqtt_topic": "MQTT topic",
+		"skip_device": "Skip this device"
+              }
+            },
+	    "messagebox": {
+	      "title": "Done",
+	      "description": "{action} configuration for {model} lock, s/n {sn}."
+	    }
+
         }
     }
 }
