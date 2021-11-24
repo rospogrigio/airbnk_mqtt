@@ -30,7 +30,7 @@ The integration can be configured in the following way (YAML config files are NO
 
 # Installation using config flow
 
-Start by going to Configuration - Integration and pressing the "+ ADD INTEGRATION" button to create a new Integration, then select "Airbnk lock" in the drop-down menu.
+Start by going to Configuration - Integration and pressing the "+ ADD INTEGRATION" button to create a new Integration, then select "Airbnk lock (MQTT-based)" in the drop-down menu.
 
 Follow the instructions: in the first dialog, you just have to type the email used in the Airbnk/WeHere App. 
 
