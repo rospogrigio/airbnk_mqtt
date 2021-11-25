@@ -18,8 +18,8 @@ from .const import (
     DOMAIN as AIRBNK_DOMAIN,
     SENSOR_TYPE_STATE,
     SENSOR_TYPE_BATTERY,
-    SENSOR_TYPE_EVENTS,
     SENSOR_TYPE_LAST_ADVERT,
+    SENSOR_TYPE_SIGNAL_STRENGTH,
     LOCK_STATE_LOCKED,
     LOCK_STATE_UNLOCKED,
     LOCK_STATE_JAMMED,
@@ -100,13 +100,12 @@ class AirbnkLockMqttDevice:
     manufactureKey = ""
     bindingkey = ""
     systemTime = 0
-    last_mqtt_advert = ""
     operating = 0
     frame1hex = ""
     frame2hex = ""
     frame1sent = False
     frame2sent = False
-    time1 = 0
+    last_advert_time = 0
     is_available = False
 
     def __init__(self, hass: HomeAssistant, device_config):
@@ -215,12 +214,14 @@ class AirbnkLockMqttDevice:
                 mqtt_mac == self._lockConfig[CONF_MAC_ADDRESS]
                 and len(mqtt_advert) == 62
             ):
-                self.last_mqtt_advert = mqtt_advert
-                self.parse_MQTT_advert(self.last_mqtt_advert[10:])
-                time2 = self.time1
-                self.time1 = int(round(time.time()))
+                self.parse_MQTT_advert(mqtt_advert[10:])
+                time2 = self.last_advert_time
+                self.last_advert_time = int(round(time.time()))
+                if "RSSI" in payload[msg_type]:
+                    self._lockData[SENSOR_TYPE_SIGNAL_STRENGTH] = payload[msg_type]["RSSI"]
 
-                deltatime = self.time1 - time2
+                deltatime = self.last_advert_time - time2
+                self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
                 if deltatime < 30:
                     self.is_available = True
                     _LOGGER.debug("Time from last message: %s secs", str(deltatime))
@@ -360,9 +361,8 @@ class AirbnkLockMqttDevice:
         manKey = self._lockData["manufacturerKey"][0:16]
         encrypted = AESCipher(manKey).encrypt(toEncrypt, False)
         code[4:20] = encrypted
-        lockEvents = self._lockData[SENSOR_TYPE_EVENTS]
         workingKey = self.generateWorkingKey(self._lockData["bindingKey"], 0)
-        signature = self.generateSignatureV2(workingKey, lockEvents, code[3:20])
+        signature = self.generateSignatureV2(workingKey, self.lockEvents, code[3:20])
         # print("Working Key is {} {} {}".format(workingKey, lockEvents, code[3:20]))
         # print("Signature is {}".format(signature))
         code[20 : 20 + len(signature)] = signature
@@ -564,9 +564,7 @@ class AirbnkLockMqttDevice:
         self.isBABA = True
 
         self._lockData[SENSOR_TYPE_STATE] = self.state
-        self._lockData[SENSOR_TYPE_EVENTS] = self.lockEvents
         self._lockData[SENSOR_TYPE_BATTERY] = self.battery
-        self._lockData[SENSOR_TYPE_LAST_ADVERT] = mqtt_advert
         # print("LOCK: {}".format(self._lockData))
 
         return
