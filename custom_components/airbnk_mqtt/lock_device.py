@@ -197,9 +197,10 @@ class AirbnkLockMqttDevice:
     def parse_MQTT_message(self, msg):
         _LOGGER.debug("Received msg %s", msg)
         payload = json.loads(msg)
-        if "DetailsBLE" in payload and ("p" and "mac" in payload["DetailsBLE"]):
-            mqtt_advert = payload["DetailsBLE"]["p"]
-            mqtt_mac = payload["DetailsBLE"]["mac"]
+        msg_type = list(payload.keys())[0]
+        if "details" in msg_type.lower() and ("p" and "mac" in payload[msg_type]):
+            mqtt_advert = payload[msg_type]["p"]
+            mqtt_mac = payload[msg_type]["mac"]
             mac_address = self._lockConfig[CONF_MAC_ADDRESS]
             if mac_address is None or mac_address == "":
                 sn_hex = "".join(
@@ -233,40 +234,39 @@ class AirbnkLockMqttDevice:
                 for callback_func in self._callbacks:
                     callback_func()
 
-        if "BLEOperation" in payload:
-            if "state" and "MAC" in payload["BLEOperation"]:
-                if payload["BLEOperation"]["state"] != "DONEWRITE":
-                    _LOGGER.error(
-                        "Failed sending frame: returned %s",
-                        payload["BLEOperation"]["state"],
-                    )
-                    self.curr_state = LOCK_STATE_FAILED
-                    raise Exception(
-                        "Failed sending frame: returned %s",
-                        payload["BLEOperation"]["state"],
-                    )
-                    return
+        if "operation" in msg_type.lower() and ("state" and "MAC" in payload[msg_type]):
+            if payload[msg_type]["state"] != "DONEWRITE":
+                _LOGGER.error(
+                    "Failed sending frame: returned %s",
+                    payload[msg_type]["state"],
+                )
+                self.curr_state = LOCK_STATE_FAILED
+                raise Exception(
+                    "Failed sending frame: returned %s",
+                    payload[msg_type]["state"],
+                )
+                return
 
-                msg_mac_address = payload["BLEOperation"]["MAC"]
-                msg_written_payload = payload["BLEOperation"]["write"]
-                if (
-                    msg_mac_address == self._lockConfig[CONF_MAC_ADDRESS]
-                    and msg_written_payload == self.frame1hex.upper()
-                ):
-                    self.frame1sent = True
-                    self.sendFrame2()
+            msg_mac_address = payload[msg_type]["MAC"]
+            msg_written_payload = payload[msg_type]["write"]
+            if (
+                msg_mac_address == self._lockConfig[CONF_MAC_ADDRESS]
+                and msg_written_payload == self.frame1hex.upper()
+            ):
+                self.frame1sent = True
+                self.sendFrame2()
 
-                if (
-                    msg_mac_address == self._lockConfig[CONF_MAC_ADDRESS]
-                    and msg_written_payload == self.frame2hex.upper()
-                ):
-                    self.frame2sent = True
-                    _LOGGER.debug("OPERATING WAS %s", self.operating)
-                    self.curr_state = LOCK_STATE_UNLOCKED if self.operating == 1 else 0
-                    self.operating = 0
+            if (
+                msg_mac_address == self._lockConfig[CONF_MAC_ADDRESS]
+                and msg_written_payload == self.frame2hex.upper()
+            ):
+                self.frame2sent = True
+                _LOGGER.debug("OPERATING WAS %s", self.operating)
+                self.curr_state = LOCK_STATE_UNLOCKED if self.operating == 1 else 0
+                self.operating = 0
 
-                    for callback_func in self._callbacks:
-                        callback_func()
+                for callback_func in self._callbacks:
+                    callback_func()
 
     async def operateLock(self, lock_dir):
         _LOGGER.debug("operateLock called (%s)", lock_dir)
