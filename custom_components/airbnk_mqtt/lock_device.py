@@ -33,6 +33,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 BLEOpTopic = "cmnd/%s/BLEOp"
+BLERule1Topic = "cmnd/%s/Rule1"
 BLEDetailsTopic = "cmnd/%s/BLEDetails2"
 BLEDetailsAllTopic = "cmnd/%s/BLEDetails3"
 BLEStateTopic = "tele/%s/BLE"
@@ -218,7 +219,8 @@ class AirbnkLockMqttDevice:
                 time2 = self.last_advert_time
                 self.last_advert_time = int(round(time.time()))
                 if "RSSI" in payload[msg_type]:
-                    self._lockData[SENSOR_TYPE_SIGNAL_STRENGTH] = payload[msg_type]["RSSI"]
+                    rssi = payload[msg_type]["RSSI"]
+                    self._lockData[SENSOR_TYPE_SIGNAL_STRENGTH] = rssi
 
                 deltatime = self.last_advert_time - time2
                 self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
@@ -372,6 +374,12 @@ class AirbnkLockMqttDevice:
 
     def requestDetails(self, mac_addr):
         mqtt.publish(
+            self.hass,
+            BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC],
+            "ON Mqtt#Connected DO BLEDetails2 %s ENDON" % mac_addr,
+        )
+        mqtt.publish(self.hass, BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC], "1")
+        mqtt.publish(
             self.hass, BLEDetailsTopic % self._lockConfig[CONF_MQTT_TOPIC], mac_addr
         )
 
@@ -381,8 +389,11 @@ class AirbnkLockMqttDevice:
         )
 
     def sendFrame1(self):
-        aa = self.BLEOPWritePAYLOADGen(self.frame1hex)
-        mqtt.publish(self.hass, BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC], aa)
+        mqtt.publish(
+            self.hass,
+            BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
+            self.BLEOPWritePAYLOADGen(self.frame1hex),
+        )
 
     def sendFrame2(self):
         mqtt.publish(
