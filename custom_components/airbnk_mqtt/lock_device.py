@@ -83,7 +83,7 @@ class AirbnkLockMqttDevice:
     curr_state = LOCK_STATE_UNLOCKED
     softVersion = None
     isEnableAuto = None
-    isLeftOpen = None
+    opensClockwise = None
     isLowBattery = None
     magnetcurr_state = None
     isMagnetEnable = None
@@ -426,7 +426,7 @@ class AirbnkLockMqttDevice:
             (str(int(barr[7]))) + "." + (str(int(barr[8]))) + "." + (str(int(barr[9])))
         )
         self.isEnableAuto = (barr[16] & 128) != 0
-        self.isLeftOpen = (barr[16] & 64) == 0
+        self.opensClockwise = (barr[16] & 64) == 0
         self.isLowBattery = (16 & barr[17]) != 0
         self.magnetcurr_state = (barr[17] >> 5) & 3
         if (barr[17] & 128) != 0:
@@ -462,7 +462,7 @@ class AirbnkLockMqttDevice:
         if (barr[17] & 128) == 0:
             index = False
 
-        self.isLeftOpen = index
+        self.opensClockwise = index
         self.isBABA = False
         self.parse2(barr, sn)
 
@@ -542,9 +542,12 @@ class AirbnkLockMqttDevice:
             )
 
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]
+        self.opensClockwise = (bArr[22] & 0x80) != 0
         if lockEvents != self.lockEvents:
             self.lockEvents = lockEvents
             self.curr_state = (bArr[22] >> 4) & 3
+            if self.opensClockwise and self.curr_state is not LOCK_STATE_JAMMED:
+                self.curr_state = 1 - self.curr_state
 
         z = False
         self.isBackLock = (bArr[22] & 1) != 0
@@ -552,7 +555,6 @@ class AirbnkLockMqttDevice:
         self.isImageA = (bArr[22] & 4) != 0
         self.isHadNewRecord = (bArr[22] & 8) != 0
         self.isEnableAuto = (bArr[22] & 0x40) != 0
-        self.isLeftOpen = (bArr[22] & 0x80) != 0
         self.isLowBattery = (bArr[23] & 0x10) != 0
         self.magnetcurr_state = (bArr[23] >> 5) & 3
         if (bArr[23] & 0x80) != 0:
