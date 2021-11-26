@@ -126,6 +126,7 @@ class AirbnkBatterySensor(AirbnkSensor):
     def state(self):
         """Return the state of the sensor."""
         # print("VOLT: {} {}".format(self._monitored_attribute, self._device._lockData))
+        self._device.check_availability()
         if self._monitored_attribute in self._device._lockData:
             return self._device._lockData[self._monitored_attribute]
         return None
