@@ -7,9 +7,10 @@
 MQTT-based control of Airbnk smart locks that are supported by Airbnk (now WeHere) app.
 
 Supported devices (using an ESP32 device as a Wifi-to-Bluetooth bridge):
-- M300
+- M300 (tested)
 - M500
-- M510 (only device tested so far)
+- M510 (tested)
+- M531 (tested)
 
 # Prerequisites:
 
