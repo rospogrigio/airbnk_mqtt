@@ -1,7 +1,6 @@
 from __future__ import annotations
 import base64
 import binascii
-import datetime
 import hashlib
 import json
 import logging
@@ -14,7 +13,6 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.util import Throttle
 
 from .const import (
     DOMAIN as AIRBNK_DOMAIN,
@@ -275,7 +273,7 @@ class AirbnkLockMqttDevice:
                 and msg_written_payload == self.frame2hex.upper()
             ):
                 self.frame2sent = True
-                _LOGGER.debug("OPERATING WAS %s", self.operating)
+                # _LOGGER.debug("OPERATING WAS %s", self.operating)
                 if self.operating == 1:
                     self.curr_state = LOCK_STATE_UNLOCKED
                 else:
@@ -390,11 +388,9 @@ class AirbnkLockMqttDevice:
         mqtt.publish(
             self.hass,
             BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC],
-            "ON Mqtt#Connected DO BLEDetails2 %s ENDON" % mac_addr
+            "ON Mqtt#Connected DO BLEDetails2 %s ENDON" % mac_addr,
         )
-        mqtt.publish(
-            self.hass, BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC], "1"
-        )
+        mqtt.publish(self.hass, BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC], "1")
         mqtt.publish(
             self.hass, BLEDetailsTopic % self._lockConfig[CONF_MQTT_TOPIC], mac_addr
         )
@@ -571,7 +567,7 @@ class AirbnkLockMqttDevice:
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]
         new_state = (bArr[22] >> 4) & 3
         self.opensClockwise = (bArr[22] & 0x80) != 0
-        if self.curr_state < LOCK_STATE_JAMMED or self.lockEvents != lockEvents:
+        if self.curr_state < LOCK_STATE_OPERATING or self.lockEvents != lockEvents:
             self.lockEvents = lockEvents
             self.curr_state = new_state
             if self.opensClockwise and self.curr_state is not LOCK_STATE_JAMMED:
