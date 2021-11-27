@@ -32,6 +32,8 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
+MAX_NORECEIVE_TIME = 30
+
 BLEOpTopic = "cmnd/%s/BLEOp"
 BLERule1Topic = "cmnd/%s/Rule1"
 BLEDetailsTopic = "cmnd/%s/BLEDetails2"
@@ -140,6 +142,13 @@ class AirbnkLockMqttDevice:
             },
         }
 
+    def check_availability(self):
+        curr_time = int(round(time.time()))
+        deltatime = curr_time - self.last_advert_time
+        # _LOGGER.debug("Last reply was %s secs ago", deltatime)
+        if deltatime >= MAX_NORECEIVE_TIME:
+            self.is_available = False
+
     @property
     def islocked(self) -> bool | None:
         if self.curr_state == LOCK_STATE_LOCKED:
@@ -224,7 +233,7 @@ class AirbnkLockMqttDevice:
 
                 deltatime = self.last_advert_time - time2
                 self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
-                if deltatime < 30:
+                if deltatime < MAX_NORECEIVE_TIME:
                     self.is_available = True
                     _LOGGER.debug("Time from last message: %s secs", str(deltatime))
                 elif time2 != 0:
@@ -264,8 +273,11 @@ class AirbnkLockMqttDevice:
                 and msg_written_payload == self.frame2hex.upper()
             ):
                 self.frame2sent = True
-                _LOGGER.debug("OPERATING WAS %s", self.operating)
-                self.curr_state = LOCK_STATE_UNLOCKED if self.operating == 1 else 0
+                # _LOGGER.debug("OPERATING WAS %s", self.operating)
+                if self.operating == 1:
+                    self.curr_state = LOCK_STATE_UNLOCKED
+                else:
+                    self.curr_state = LOCK_STATE_LOCKED
                 self.operating = 0
 
                 for callback_func in self._callbacks:
@@ -553,10 +565,11 @@ class AirbnkLockMqttDevice:
             )
 
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]
+        new_state = (bArr[22] >> 4) & 3
         self.opensClockwise = (bArr[22] & 0x80) != 0
-        if lockEvents != self.lockEvents:
+        if self.curr_state < LOCK_STATE_OPERATING or self.lockEvents != lockEvents:
             self.lockEvents = lockEvents
-            self.curr_state = (bArr[22] >> 4) & 3
+            self.curr_state = new_state
             if self.opensClockwise and self.curr_state is not LOCK_STATE_JAMMED:
                 self.curr_state = 1 - self.curr_state
 
