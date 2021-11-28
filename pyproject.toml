@@ -1,6 +1,6 @@
 [tool.black]
-target-version = ["py37", "py38"]
-include = 'custom_components/daikin_residential/.*\.py'
+target-version = ["py38", "py39"]
+include = 'custom_components/airbnk_mqtt/.*\.py'
 
 # pylint config stolen from Home Assistant
 # Use a conservative default here; 2 should speed up most setups and not hurt
