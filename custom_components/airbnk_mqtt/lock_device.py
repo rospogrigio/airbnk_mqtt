@@ -284,8 +284,8 @@ class AirbnkLockMqttDevice:
         for callback_func in self._callbacks:
             callback_func()
 
-		self.generateOperationCode(lock_dir)
-		self.sendFrame1()
+        self.generateOperationCode(lock_dir)
+        self.sendFrame1()
 
     def XOR64Buffer(self, arr, value):
         for i in range(0, 64):
