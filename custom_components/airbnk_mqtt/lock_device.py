@@ -103,7 +103,6 @@ class AirbnkLockMqttDevice:
     manufactureKey = ""
     bindingkey = ""
     systemTime = 0
-    operating = 0
     frame1hex = ""
     frame2hex = ""
     frame1sent = False
@@ -273,12 +272,6 @@ class AirbnkLockMqttDevice:
                 and msg_written_payload == self.frame2hex.upper()
             ):
                 self.frame2sent = True
-                # _LOGGER.debug("OPERATING WAS %s", self.operating)
-                if self.operating == 1:
-                    self.curr_state = LOCK_STATE_UNLOCKED
-                else:
-                    self.curr_state = LOCK_STATE_LOCKED
-                self.operating = 0
 
                 for callback_func in self._callbacks:
                     callback_func()
@@ -287,14 +280,12 @@ class AirbnkLockMqttDevice:
         _LOGGER.debug("operateLock called (%s)", lock_dir)
         self.frame1sent = False
         self.frame2sent = False
-        self.operating = int(lock_dir)
         self.curr_state = LOCK_STATE_OPERATING
         for callback_func in self._callbacks:
             callback_func()
 
-        if self.operating != 0:
-            self.generateOperationCode(lock_dir)
-            self.sendFrame1()
+		self.generateOperationCode(lock_dir)
+		self.sendFrame1()
 
     def XOR64Buffer(self, arr, value):
         for i in range(0, 64):
