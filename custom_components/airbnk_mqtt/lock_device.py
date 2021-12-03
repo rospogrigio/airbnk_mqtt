@@ -206,10 +206,10 @@ class AirbnkLockMqttDevice:
         _LOGGER.debug("Received msg %s", msg)
         payload = json.loads(msg)
         msg_type = list(payload.keys())[0]
+        mac_address = self._lockConfig[CONF_MAC_ADDRESS]
         if "details" in msg_type.lower() and ("p" and "mac" in payload[msg_type]):
             mqtt_advert = payload[msg_type]["p"]
             mqtt_mac = payload[msg_type]["mac"]
-            mac_address = self._lockConfig[CONF_MAC_ADDRESS]
             if mac_address is None or mac_address == "":
                 sn_hex = "".join(
                     "{:02x}".format(ord(c)) for c in self._lockData["lockSn"]
@@ -217,12 +217,10 @@ class AirbnkLockMqttDevice:
                 if mqtt_advert[24 : 24 + len(sn_hex)] != sn_hex:
                     return
                 self._lockConfig[CONF_MAC_ADDRESS] = mqtt_mac
+                mac_address = mqtt_mac
                 self.requestDetails(mqtt_mac)
 
-            if (
-                mqtt_mac == self._lockConfig[CONF_MAC_ADDRESS]
-                and len(mqtt_advert) == 62
-            ):
+            if mqtt_mac == mac_address and len(mqtt_advert) == 62:
                 self.parse_MQTT_advert(mqtt_advert[10:])
                 time2 = self.last_advert_time
                 self.last_advert_time = int(round(time.time()))
@@ -246,33 +244,22 @@ class AirbnkLockMqttDevice:
                     callback_func()
 
         if "operation" in msg_type.lower() and ("state" and "MAC" in payload[msg_type]):
-            if payload[msg_type]["state"] != "DONEWRITE":
-                _LOGGER.error(
-                    "Failed sending frame: returned %s",
-                    payload[msg_type]["state"],
-                )
+            if payload[msg_type]["MAC"] != mac_address:
+                return
+            msg_state = payload[msg_type]["state"]
+            if "FAIL" in msg_state:
+                _LOGGER.error("Failed sending frame: returned %s", msg_state)
                 self.curr_state = LOCK_STATE_FAILED
-                raise Exception(
-                    "Failed sending frame: returned %s",
-                    payload[msg_type]["state"],
-                )
+                raise Exception("Failed sending frame: returned %s", msg_state)
                 return
 
-            msg_mac_address = payload[msg_type]["MAC"]
             msg_written_payload = payload[msg_type]["write"]
-            if (
-                msg_mac_address == self._lockConfig[CONF_MAC_ADDRESS]
-                and msg_written_payload == self.frame1hex.upper()
-            ):
+            if msg_written_payload == self.frame1hex.upper():
                 self.frame1sent = True
                 self.sendFrame2()
 
-            if (
-                msg_mac_address == self._lockConfig[CONF_MAC_ADDRESS]
-                and msg_written_payload == self.frame2hex.upper()
-            ):
+            if msg_written_payload == self.frame2hex.upper():
                 self.frame2sent = True
-
                 for callback_func in self._callbacks:
                     callback_func()
 
