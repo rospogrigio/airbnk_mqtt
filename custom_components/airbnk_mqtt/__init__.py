@@ -51,10 +51,11 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     """Establish connection with Airbnk."""
 
     device_configs = entry.data[CONF_DEVICE_CONFIGS]
+    entry.add_update_listener(async_options_updated)
     _LOGGER.debug("DEVICES ARE %s", device_configs)
     lock_devices = {}
     for dev_id, dev_config in device_configs.items():
-        lock_devices[dev_id] = AirbnkLockMqttDevice(hass, dev_config)
+        lock_devices[dev_id] = AirbnkLockMqttDevice(hass, dev_config, entry.options)
         await lock_devices[dev_id].mqtt_subscribe()
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
@@ -63,6 +64,12 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
             hass.config_entries.async_forward_entry_setup(entry, component)
         )
     return True
+
+
+async def async_options_updated(hass, entry):
+    """Triggered by config entry options updates."""
+    for dev_id, device in hass.data[DOMAIN][AIRBNK_DEVICES].items():
+        device.set_options(entry.options)
 
 
 async def async_unload_entry(hass, config_entry):

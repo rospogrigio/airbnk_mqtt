@@ -46,5 +46,15 @@
 	    }
 
         }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Configure options for MQTT-based Airbnk integration",
+                "data": {
+                    "retries_num": "Number of retries in case of failure"
+                }
+            }
+        }
     }
 }

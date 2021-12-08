@@ -4,6 +4,7 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import CONF_EMAIL, CONF_CODE, CONF_TOKEN
+from homeassistant.core import callback
 
 from .airbnk_api import AirbnkApi
 from .const import (
@@ -12,6 +13,8 @@ from .const import (
     CONF_MQTT_TOPIC,
     CONF_MAC_ADDRESS,
     CONF_DEVICE_CONFIGS,
+    CONF_RETRIES_NUM,
+    DEFAULT_RETRIES_NUM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +58,12 @@ class FlowHandler(config_entries.ConfigFlow):
         self.device_configs = {}
         self.device_index = 0
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        """Get the options flow for this handler."""
+        return AirbnkMqttOptionsFlowHandler(config_entry)
+
     async def _create_entry(self):
         """Register new entry."""
         # if not self.unique_id:
@@ -74,6 +83,12 @@ class FlowHandler(config_entries.ConfigFlow):
                 CONF_DEVICE_CONFIGS: self.entry_data[CONF_DEVICE_CONFIGS],
             },
         )
+
+    async def async_step_init(self, user_input=None):
+        """User initiated config flow."""
+        if user_input is None:
+            return self.async_show_form(step_id="user", data_schema=STEP1_SCHEMA)
+        return await self.async_step_verify(user_input)
 
     async def async_step_user(self, user_input=None):
         """User initiated config flow."""
@@ -181,3 +196,28 @@ class FlowHandler(config_entries.ConfigFlow):
     async def async_step_import(self, user_input):
         """Import a config entry from YAML."""
         _LOGGER.error("This integration does not support configuration via YAML file.")
+
+
+class AirbnkMqttOptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle Transmission client options."""
+
+    def __init__(self, config_entry):
+        """Initialize Transmission options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(self, user_input=None):
+        """Manage the Transmission options."""
+        if user_input is not None:
+            print("UI is {}".format(user_input))
+            return self.async_create_entry(title="", data=user_input)
+
+        options = {
+            vol.Optional(
+                CONF_RETRIES_NUM,
+                default=self.config_entry.options.get(
+                    CONF_RETRIES_NUM, DEFAULT_RETRIES_NUM
+                ),
+            ): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
+        }
+
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(options))

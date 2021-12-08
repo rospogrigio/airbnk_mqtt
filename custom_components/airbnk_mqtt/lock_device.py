@@ -28,6 +28,8 @@ from .const import (
     LOCK_STATE_STRINGS,
     CONF_MAC_ADDRESS,
     CONF_MQTT_TOPIC,
+    CONF_RETRIES_NUM,
+    DEFAULT_RETRIES_NUM,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -109,14 +111,17 @@ class AirbnkLockMqttDevice:
     frame2sent = False
     last_advert_time = 0
     is_available = False
+    retries_num = DEFAULT_RETRIES_NUM
+    curr_try = 0
 
-    def __init__(self, hass: HomeAssistant, device_config):
+    def __init__(self, hass: HomeAssistant, device_config, entry_options):
         self.hass = hass
         self._callbacks = set()
         self._lockConfig = device_config
         self._lockData = self.decryptKeys(
             device_config["newSninfo"], device_config["appKey"]
         )
+        self.set_options(entry_options)
         mac_address = self._lockConfig[CONF_MAC_ADDRESS]
         if mac_address is not None and mac_address != "":
             self.requestDetails(mac_address)
@@ -176,13 +181,18 @@ class AirbnkLockMqttDevice:
     async def mqtt_subscribe(self):
         @callback
         async def message_received(_p0) -> None:
-            self.parse_MQTT_message(_p0.payload)
+            await self.async_parse_MQTT_message(_p0.payload)
 
         await mqtt.async_subscribe(
             self.hass,
             BLEStateTopic % self._lockConfig[CONF_MQTT_TOPIC],
             msg_callback=message_received,
         )
+
+    def set_options(self, entry_options):
+        """Register callback, called when lock changes state."""
+        _LOGGER.debug("Options set: %s", entry_options)
+        self.retries_num = entry_options.get(CONF_RETRIES_NUM, DEFAULT_RETRIES_NUM)
 
     def register_callback(self, callback: Callable[[], None]) -> None:
         """Register callback, called when lock changes state."""
@@ -202,7 +212,7 @@ class AirbnkLockMqttDevice:
             else:
                 self.type2(barr, sn)
 
-    def parse_MQTT_message(self, msg):
+    async def async_parse_MQTT_message(self, msg):
         _LOGGER.debug("Received msg %s", msg)
         payload = json.loads(msg)
         msg_type = list(payload.keys())[0]
@@ -250,13 +260,27 @@ class AirbnkLockMqttDevice:
             if "FAIL" in msg_state:
                 _LOGGER.error("Failed sending frame: returned %s", msg_state)
                 self.curr_state = LOCK_STATE_FAILED
-                raise Exception("Failed sending frame: returned %s", msg_state)
+                for callback_func in self._callbacks:
+                    callback_func()
+
+                if self.curr_try < self.retries_num:
+                    self.curr_try += 1
+                    time.sleep(0.5)
+                    _LOGGER.debug("Retrying: attempt %i", self.curr_try)
+                    self.curr_state = LOCK_STATE_OPERATING
+                    for callback_func in self._callbacks:
+                        callback_func()
+                    await self.async_sendFrame1()
+                else:
+                    _LOGGER.error("No more retries: command FAILED")
+                    raise Exception("Failed sending frame: returned %s", msg_state)
+
                 return
 
             msg_written_payload = payload[msg_type]["write"]
             if msg_written_payload == self.frame1hex.upper():
                 self.frame1sent = True
-                self.sendFrame2()
+                await self.async_sendFrame2()
 
             if msg_written_payload == self.frame2hex.upper():
                 self.frame2sent = True
@@ -264,7 +288,8 @@ class AirbnkLockMqttDevice:
                     callback_func()
 
     async def operateLock(self, lock_dir):
-        _LOGGER.debug("operateLock called (%s)", lock_dir)
+        self.curr_try = 0
+        _LOGGER.debug("operateLock called (%s): attempt %i", lock_dir, self.curr_try)
         self.frame1sent = False
         self.frame2sent = False
         self.curr_state = LOCK_STATE_OPERATING
@@ -272,7 +297,7 @@ class AirbnkLockMqttDevice:
             callback_func()
 
         self.generateOperationCode(lock_dir)
-        self.sendFrame1()
+        await self.async_sendFrame1()
 
     def XOR64Buffer(self, arr, value):
         for i in range(0, 64):
@@ -378,14 +403,14 @@ class AirbnkLockMqttDevice:
             self.hass, BLEDetailsAllTopic % self._lockConfig[CONF_MQTT_TOPIC], ""
         )
 
-    def sendFrame1(self):
+    async def async_sendFrame1(self):
         mqtt.publish(
             self.hass,
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
             self.BLEOPWritePAYLOADGen(self.frame1hex),
         )
 
-    def sendFrame2(self):
+    async def async_sendFrame2(self):
         mqtt.publish(
             self.hass,
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],

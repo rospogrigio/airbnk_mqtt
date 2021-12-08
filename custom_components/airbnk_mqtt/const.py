@@ -22,11 +22,13 @@ CONF_DEVICE_CONFIGS = "device_configs"
 CONF_LOCKSTATUS = "lockStatus"
 CONF_MQTT_TOPIC = "mqtt_topic"
 CONF_MAC_ADDRESS = "mac_address"
+CONF_RETRIES_NUM = "retries_num"
 
 AIRBNK_DATA = "airbnk_data"
 AIRBNK_API = "airbnk_api"
 AIRBNK_DEVICES = "airbnk_devices"
 AIRBNK_DISCOVERY_NEW = "airbnk_discovery_new_{}"
+DEFAULT_RETRIES_NUM = 0
 
 TIMEOUT = 60
 
