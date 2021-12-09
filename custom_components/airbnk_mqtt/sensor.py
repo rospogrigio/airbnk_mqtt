@@ -17,6 +17,7 @@ from .const import (
     AIRBNK_DEVICES,
     SENSOR_TYPE_STATE,
     SENSOR_TYPE_BATTERY,
+    SENSOR_TYPE_VOLTAGE,
     SENSOR_TYPE_LAST_ADVERT,
     SENSOR_TYPE_SIGNAL_STRENGTH,
     SENSOR_TYPES,
@@ -54,6 +55,7 @@ class AirbnkSensor(Entity):
         cls = {
             SENSOR_TYPE_STATE: AirbnkTextSensor,
             SENSOR_TYPE_BATTERY: AirbnkBatterySensor,
+            SENSOR_TYPE_VOLTAGE: AirbnkTextSensor,
             SENSOR_TYPE_SIGNAL_STRENGTH: AirbnkTextSensor,
             SENSOR_TYPE_LAST_ADVERT: AirbnkTextSensor,
         }[SENSOR_TYPES[monitored_attr][CONF_TYPE]]

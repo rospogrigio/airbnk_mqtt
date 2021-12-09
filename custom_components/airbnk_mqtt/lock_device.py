@@ -18,6 +18,7 @@ from .const import (
     DOMAIN as AIRBNK_DOMAIN,
     SENSOR_TYPE_STATE,
     SENSOR_TYPE_BATTERY,
+    SENSOR_TYPE_VOLTAGE,
     SENSOR_TYPE_LAST_ADVERT,
     SENSOR_TYPE_SIGNAL_STRENGTH,
     LOCK_STATE_LOCKED,
@@ -28,6 +29,7 @@ from .const import (
     LOCK_STATE_STRINGS,
     CONF_MAC_ADDRESS,
     CONF_MQTT_TOPIC,
+    CONF_VOLTAGE_THRESHOLDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -78,7 +80,8 @@ class AESCipher:
 class AirbnkLockMqttDevice:
 
     utcMinutes = None
-    battery = None
+    voltage = None
+    battery_perc = None
     isBackLock = None
     isInit = None
     isImageA = None
@@ -408,7 +411,7 @@ class AirbnkLockMqttDevice:
         self.lockEvents = (
             (barr[10] << 24) | (barr[11] << 16) | (barr[12] << 8) | barr[13]
         )
-        self.battery = ((((barr[14] & 255) << 8) | (barr[15] & 255))) * 0.01
+        self.voltage = ((((barr[14] & 255) << 8) | (barr[15] & 255))) * 0.01
         magnetenableindex = False
         self.isBackLock = (barr[16] & 1) != 0
         self.isInit = (barr[16] & 2) != 0
@@ -452,7 +455,7 @@ class AirbnkLockMqttDevice:
             | ((barr[14] & 255) << 8)
             | (barr[15] & 255)
         )
-        self.battery = ((barr[16] & 255)) * 0.1
+        self.voltage = ((barr[16] & 255)) * 0.1
         index = True
         self.isBackLock = (barr[17] & 1) != 0
         self.isInit = (barr[17] & 2) != 0
@@ -530,7 +533,7 @@ class AirbnkLockMqttDevice:
             _LOGGER.error("Wrong advert msg: %s", mqtt_advert)
             return
 
-        self.battery = ((float)((bArr[16] << 8) | bArr[17])) * 0.1
+        self.voltage = ((float)((bArr[16] << 8) | bArr[17])) * 0.01
         self.boardModel = bArr[2]
         self.lversionOfSoft = bArr[3]
         self.sversionOfSoft = (bArr[4] << 16) | (bArr[5] << 8) | bArr[6]
@@ -565,11 +568,25 @@ class AirbnkLockMqttDevice:
         self.isMagnetEnable = z
         self.isBABA = True
 
+        self.battery_perc = self.calculate_battery_percentage(self.voltage)
         self._lockData[SENSOR_TYPE_STATE] = self.state
-        self._lockData[SENSOR_TYPE_BATTERY] = self.battery
+        self._lockData[SENSOR_TYPE_BATTERY] = self.battery_perc
+        self._lockData[SENSOR_TYPE_VOLTAGE] = self.voltage
         # print("LOCK: {}".format(self._lockData))
 
         return
+
+    def calculate_battery_percentage(self, voltage):
+        voltages = self._lockConfig[CONF_VOLTAGE_THRESHOLDS]
+        perc = 0
+        if voltage >= voltages[2]:
+            perc = 100
+        elif voltage >= voltages[1]:
+            perc = 66.6 + 33.3 * (voltage - voltages[1]) / (voltages[2] - voltages[1])
+        else:
+            perc = 33.3 + 33.3 * (voltage - voltages[0]) / (voltages[1] - voltages[0])
+        perc = max(perc, 0)
+        return round(perc, 1)
 
     def generateOperationCode(self, lock_dir):
         if lock_dir != 1 and lock_dir != 2:
