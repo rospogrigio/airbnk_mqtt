@@ -34,14 +34,10 @@ _LOGGER = logging.getLogger(__name__)
 
 MAX_NORECEIVE_TIME = 30
 
-BLEOpTopic = "cmnd/%s/BLEOp"
-BLERule1Topic = "cmnd/%s/Rule1"
-BLEDetailsTopic = "cmnd/%s/BLEDetails2"
-BLEDetailsAllTopic = "cmnd/%s/BLEDetails3"
-BLEStateTopic = "tele/%s/BLE"
-write_characteristic_UUID = "FFF2"
-read_characteristic_UUID = "FFF3"
-service_UUID = "FFF0"
+BLETelemetryTopic = "%s/tele"
+BLEOpTopic = "%s/command"
+BLEStateTopic = "%s/adv"
+BLEOperationReportTopic = "%s/command_result"
 
 
 class AESCipher:
@@ -103,10 +99,8 @@ class AirbnkLockMqttDevice:
     manufactureKey = ""
     bindingkey = ""
     systemTime = 0
-    frame1hex = ""
-    frame2hex = ""
-    frame1sent = False
-    frame2sent = False
+    cmd = {}
+    cmdSent = False
     last_advert_time = 0
     is_available = False
 
@@ -117,11 +111,6 @@ class AirbnkLockMqttDevice:
         self._lockData = self.decryptKeys(
             device_config["newSninfo"], device_config["appKey"]
         )
-        mac_address = self._lockConfig[CONF_MAC_ADDRESS]
-        if mac_address is not None and mac_address != "":
-            self.requestDetails(mac_address)
-        else:
-            self.scanAllAdverts()
 
     @property
     def device_info(self):
@@ -175,104 +164,102 @@ class AirbnkLockMqttDevice:
 
     async def mqtt_subscribe(self):
         @callback
-        async def message_received(_p0) -> None:
-            self.parse_MQTT_message(_p0.payload)
+        async def adv_received(_p0) -> None:
+            self.parse_adv_message(_p0.payload)
+
+        @callback
+        async def operation_msg_received(_p0) -> None:
+            self.parse_operation_message(_p0.payload)
+
+        @callback
+        async def telemetry_msg_received(_p0) -> None:
+            self.parse_telemetry_message(_p0.payload)
 
         await mqtt.async_subscribe(
             self.hass,
             BLEStateTopic % self._lockConfig[CONF_MQTT_TOPIC],
-            msg_callback=message_received,
+            msg_callback=adv_received,
+        )
+        await mqtt.async_subscribe(
+            self.hass,
+            BLETelemetryTopic % self._lockConfig[CONF_MQTT_TOPIC],
+            msg_callback=telemetry_msg_received,
+        )
+        await mqtt.async_subscribe(
+            self.hass,
+            BLEOperationReportTopic % self._lockConfig[CONF_MQTT_TOPIC],
+            msg_callback=operation_msg_received,
         )
 
     def register_callback(self, callback: Callable[[], None]) -> None:
         """Register callback, called when lock changes state."""
         self._callbacks.add(callback)
 
-    def parse_from_fff3_read_prop(self, sn, barr=[0]):
-        # Initialising empty Lockeradvertising variables
-        # The init initialiser is used to init object from
-        # BLE read properties returned when reading
-        # 0Xfff3 characteristic
+    def parse_telemetry_message(self, msg):
+        # TODO
+        _LOGGER.debug("Received telemetry %s", msg)
 
-        # According to type of the lock, checks the byte array
-        # and parse using type1 or type2 func
-        if barr != [0] and barr is not None:
-            if barr[6] == 240:
-                self.type1(barr, sn)
-            else:
-                self.type2(barr, sn)
-
-    def parse_MQTT_message(self, msg):
-        _LOGGER.debug("Received msg %s", msg)
+    def parse_adv_message(self, msg):
+        _LOGGER.debug("Received adv %s", msg)
         payload = json.loads(msg)
-        msg_type = list(payload.keys())[0]
         mac_address = self._lockConfig[CONF_MAC_ADDRESS]
-        if "details" in msg_type.lower() and ("p" and "mac" in payload[msg_type]):
-            mqtt_advert = payload[msg_type]["p"]
-            mqtt_mac = payload[msg_type]["mac"]
-            if mac_address is None or mac_address == "":
-                sn_hex = "".join(
-                    "{:02x}".format(ord(c)) for c in self._lockData["lockSn"]
-                )
-                if mqtt_advert[24 : 24 + len(sn_hex)] != sn_hex:
-                    return
-                self._lockConfig[CONF_MAC_ADDRESS] = mqtt_mac
-                mac_address = mqtt_mac
-                self.requestDetails(mqtt_mac)
+        mqtt_advert = payload["data"]
+        mqtt_mac = payload["mac"].replace(":", "").upper()
+        _LOGGER.debug("Config mac %s, received %s", mac_address, mqtt_mac)
+        if mqtt_mac != mac_address.upper():
+            return
 
-            if mqtt_mac == mac_address and len(mqtt_advert) == 62:
-                self.parse_MQTT_advert(mqtt_advert[10:])
-                time2 = self.last_advert_time
-                self.last_advert_time = int(round(time.time()))
-                if "RSSI" in payload[msg_type]:
-                    rssi = payload[msg_type]["RSSI"]
-                    self._lockData[SENSOR_TYPE_SIGNAL_STRENGTH] = rssi
+        self.parse_MQTT_advert(mqtt_advert.upper())
+        time2 = self.last_advert_time
+        self.last_advert_time = int(round(time.time()))
+        if "rssi" in payload:
+            rssi = payload["rssi"]
+            self._lockData[SENSOR_TYPE_SIGNAL_STRENGTH] = rssi
 
-                deltatime = self.last_advert_time - time2
-                self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
-                if deltatime < MAX_NORECEIVE_TIME:
-                    self.is_available = True
-                    _LOGGER.debug("Time from last message: %s secs", str(deltatime))
-                elif time2 != 0:
-                    _LOGGER.error(
-                        "Time from last message: %s secs: device unavailable",
-                        str(deltatime),
-                    )
-                    self.is_available = False
+        deltatime = self.last_advert_time - time2
+        self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
+        self.is_available = True
+        _LOGGER.debug("Time from last message: %s secs", str(deltatime))
 
-                for callback_func in self._callbacks:
-                    callback_func()
+        for callback_func in self._callbacks:
+            callback_func()
 
-        if "operation" in msg_type.lower() and ("state" and "MAC" in payload[msg_type]):
-            if payload[msg_type]["MAC"] != mac_address:
-                return
-            msg_state = payload[msg_type]["state"]
-            if "FAIL" in msg_state:
-                _LOGGER.error("Failed sending frame: returned %s", msg_state)
-                self.curr_state = LOCK_STATE_FAILED
-                raise Exception("Failed sending frame: returned %s", msg_state)
-                return
+    def parse_operation_message(self, msg):
+        _LOGGER.debug("Received operation result %s", msg)
+        payload = json.loads(msg)
+        mac_address = self._lockConfig[CONF_MAC_ADDRESS]
+        mqtt_mac = payload["mac"].replace(":", "").upper()
 
-            msg_written_payload = payload[msg_type]["write"]
-            if msg_written_payload == self.frame1hex.upper():
-                self.frame1sent = True
-                self.sendFrame2()
+        if mqtt_mac != mac_address.upper():
+            return
 
-            if msg_written_payload == self.frame2hex.upper():
-                self.frame2sent = True
-                for callback_func in self._callbacks:
-                    callback_func()
+        msg_state = payload["success"]
+        if msg_state == False:
+            _LOGGER.error("Failed sending command: returned %s", msg_state)
+            self.curr_state = LOCK_STATE_FAILED
+            raise Exception("Failed sending command: returned %s", msg_state)
+            return
+
+        msg_sign = payload["sign"]
+        if msg_sign == self.cmd["sign"]:
+            self.cmdSent = True
+
+        for callback_func in self._callbacks:
+            callback_func()
 
     async def operateLock(self, lock_dir):
         _LOGGER.debug("operateLock called (%s)", lock_dir)
-        self.frame1sent = False
-        self.frame2sent = False
+        self.cmdSent = False
         self.curr_state = LOCK_STATE_OPERATING
         for callback_func in self._callbacks:
             callback_func()
 
         self.generateOperationCode(lock_dir)
-        self.sendFrame1()
+        mqtt.publish(
+            self.hass,
+            BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
+            json.dumps(self.cmd),
+        )
 
     def XOR64Buffer(self, arr, value):
         for i in range(0, 64):
@@ -362,169 +349,8 @@ class AirbnkLockMqttDevice:
         return binascii.hexlify(code).upper()
         # return code
 
-    def requestDetails(self, mac_addr):
-        mqtt.publish(
-            self.hass,
-            BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC],
-            "ON Mqtt#Connected DO BLEDetails2 %s ENDON" % mac_addr,
-        )
-        mqtt.publish(self.hass, BLERule1Topic % self._lockConfig[CONF_MQTT_TOPIC], "1")
-        mqtt.publish(
-            self.hass, BLEDetailsTopic % self._lockConfig[CONF_MQTT_TOPIC], mac_addr
-        )
-
-    def scanAllAdverts(self):
-        mqtt.publish(
-            self.hass, BLEDetailsAllTopic % self._lockConfig[CONF_MQTT_TOPIC], ""
-        )
-
-    def sendFrame1(self):
-        mqtt.publish(
-            self.hass,
-            BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
-            self.BLEOPWritePAYLOADGen(self.frame1hex),
-        )
-
-    def sendFrame2(self):
-        mqtt.publish(
-            self.hass,
-            BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
-            self.BLEOPWritePAYLOADGen(self.frame2hex),
-        )
-
-    def BLEOPWritePAYLOADGen(self, frame):
-        mac_address = self._lockConfig[CONF_MAC_ADDRESS]
-        write_UUID = write_characteristic_UUID
-        payload = f"M:{mac_address} s:{service_UUID} c:{write_UUID} w:{frame} go"
-        _LOGGER.debug("Sending payload [ %s ]", payload)
-        return payload
-
-    def BLEOPreadPAYLOADGen(self):
-        mac_address = self._lockData["mac_address"]
-        return f"M:{mac_address} s:{service_UUID} c:{read_characteristic_UUID} r go"
-
-    def type1(self, barr, sn):
-        self.serialnumber = sn
-        self.lockEvents = (
-            (barr[10] << 24) | (barr[11] << 16) | (barr[12] << 8) | barr[13]
-        )
-        self.battery = ((((barr[14] & 255) << 8) | (barr[15] & 255))) * 0.01
-        magnetenableindex = False
-        self.isBackLock = (barr[16] & 1) != 0
-        self.isInit = (barr[16] & 2) != 0
-        self.isImageA = (barr[16] & 4) != 0
-        self.isHadNewRecord = (barr[16] & 8) != 0
-        i = ((barr[16] & 255) >> 4) & 7
-
-        if i == 0 or i == 5:
-            self.curr_state = LOCK_STATE_UNLOCKED
-        elif i == 1 or i == 4:
-            self.curr_state = LOCK_STATE_LOCKED
-        else:
-            self.curr_state = LOCK_STATE_JAMMED
-
-        self.softVersion = (
-            (str(int(barr[7]))) + "." + (str(int(barr[8]))) + "." + (str(int(barr[9])))
-        )
-        self.isEnableAuto = (barr[16] & 128) != 0
-        self.opensClockwise = (barr[16] & 64) == 0
-        self.isLowBattery = (16 & barr[17]) != 0
-        self.magnetcurr_state = (barr[17] >> 5) & 3
-        if (barr[17] & 128) != 0:
-            magnetenableindex = True
-
-        self.isMagnetEnable = magnetenableindex
-        self.isBABA = True
-        self.parse1(barr, sn)
-
-    # Function used to set properties type2 lock
-    def type2(self, barr, sn):
-        self.serialnumber = sn
-        self.lockEvents = (
-            ((barr[8] & 255) << 24)
-            | ((barr[9] & 255) << 16)
-            | ((barr[10] & 255) << 8)
-            | (barr[11] & 255)
-        )
-        self.utcMinutes = (
-            ((barr[12] & 255) << 24)
-            | ((barr[13] & 255) << 16)
-            | ((barr[14] & 255) << 8)
-            | (barr[15] & 255)
-        )
-        self.battery = ((barr[16] & 255)) * 0.1
-        index = True
-        self.isBackLock = (barr[17] & 1) != 0
-        self.isInit = (barr[17] & 2) != 0
-        self.isImageA = (barr[17] & 4) != 0
-        self.isHadNewRecord = (8 & barr[17]) != 0
-        self.curr_state = ((barr[17] & 255) >> 4) & 3
-        self.isEnableAuto = (barr[17] & 64) != 0
-        if (barr[17] & 128) == 0:
-            index = False
-
-        self.opensClockwise = index
-        self.isBABA = False
-        self.parse2(barr, sn)
-
-    def parse2(self, barr, sn):
-        if barr is None:
-            return None
-
-        barr2 = bytearray(23)
-        barr2[0] = 173
-        barr2[1] = barr[6]
-        barr2[2] = barr[7]
-        if sn is not None and len(sn) > 0:
-            length = len(sn)
-            bytes1 = bytes(sn, "utf-8")
-            for i in range(length):
-
-                barr2[i + 3] = bytes1[i]
-
-        barr2[12] = barr[8]
-        barr2[13] = barr[9]
-        barr2[14] = barr[10]
-        barr2[15] = barr[11]
-        barr2[16] = barr[12]
-        barr2[17] = barr[13]
-        barr2[18] = barr[14]
-        barr2[19] = barr[15]
-        barr2[20] = barr[16]
-        barr2[21] = barr[17]
-        barr2[22] = barr[18]
-
-        return bytearray.hex(barr2)
-
-    def parse1(self, barr, sn):
-        if barr is None:
-            return None
-
-        barr2 = bytearray(24)
-        barr2[0] = 186
-        barr2[1] = 186
-        barr2[4] = barr[7]
-        barr2[5] = barr[8]
-        barr2[6] = barr[9]
-        if sn is not None and len(sn) > 0:
-            length = len(sn)
-            bytes1 = bytes(sn, "utf-8")
-            for i in range(length):
-                barr2[i + 7] = bytes1[i]
-
-        barr2[16] = barr[14]
-        barr2[17] = barr[15]
-        barr2[18] = barr[10]
-        barr2[19] = barr[11]
-        barr2[20] = barr[12]
-        barr2[21] = barr[13]
-        barr2[22] = barr[16]
-        barr2[23] = barr[17]
-
-        return bytearray.hex(barr2)
-
     def parse_MQTT_advert(self, mqtt_advert):
-
+        _LOGGER.debug("Parsing advert msg: %s", mqtt_advert)
         bArr = bytearray.fromhex(mqtt_advert)
         if bArr[0] != 0xBA or bArr[1] != 0xBA:
             _LOGGER.error("Wrong advert msg: %s", mqtt_advert)
@@ -579,11 +405,11 @@ class AirbnkLockMqttDevice:
         # self.systemTime = 1637590376
         opCode = self.makePackageV3(lock_dir, self.systemTime)
         _LOGGER.debug("OperationCode for dir %s is %s", lock_dir, opCode)
-        self.frame1hex = "FF00" + opCode[0:36].decode("utf-8")
-        self.frame2hex = "FF01" + opCode[36:].decode("utf-8")
-        # print("PACKET 1 IS {}".format(self.frame1hex))
-        # print("PACKET 2 IS {}".format(self.frame2hex))
-
+        json = {}
+        json["command1"] = "FF00" + opCode[0:36].decode("utf-8")
+        json["command2"] = "FF01" + opCode[36:].decode("utf-8")
+        json["sign"] = self.systemTime
+        self.cmd = json
         return opCode
 
     def decryptKeys(self, newSnInfo, appKey):
