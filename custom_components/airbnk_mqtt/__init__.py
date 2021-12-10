@@ -101,12 +101,14 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     lock_devices = {}
     for dev_id, dev_config in device_configs.items():
         if dev_config[CONF_DEVICE_MQTT_TYPE] == CONF_CUSTOM_MQTT:
-            lock_devices[dev_id] = CustomMqttLockDevice(hass, dev_config, entry.options)
+            lock_devices[dev_id] = CustomMqttLockDevice(
+                hass, dev_config, entry.options
+            )
         else:
             lock_devices[dev_id] = TasmotaMqttLockDevice(
                 hass, dev_config, entry.options
             )
-            await lock_devices[dev_id].mqtt_subscribe()
+        await lock_devices[dev_id].mqtt_subscribe()
 
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
