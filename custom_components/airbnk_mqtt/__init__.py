@@ -15,8 +15,11 @@ from .const import (
     CONF_DEVICE_CONFIGS,
     CONF_VOLTAGE_THRESHOLDS,
     CONF_USERID,
+    CONF_DEVICE_MQTT_TYPE,
+    CONF_CUSTOM_MQTT,
 )
 from .tasmota_device import TasmotaMqttLockDevice
+from .custom_device import CustomMqttLockDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,8 +100,14 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     _LOGGER.debug("DEVICES ARE %s", device_configs)
     lock_devices = {}
     for dev_id, dev_config in device_configs.items():
-        lock_devices[dev_id] = TasmotaMqttLockDevice(hass, dev_config, entry.options)
-        await lock_devices[dev_id].mqtt_subscribe()
+        if dev_config[CONF_DEVICE_MQTT_TYPE] == CONF_CUSTOM_MQTT:
+            lock_devices[dev_id] = CustomMqttLockDevice(hass, dev_config, entry.options)
+        else:
+            lock_devices[dev_id] = TasmotaMqttLockDevice(
+                hass, dev_config, entry.options
+            )
+            await lock_devices[dev_id].mqtt_subscribe()
+
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
     for component in COMPONENT_TYPES:

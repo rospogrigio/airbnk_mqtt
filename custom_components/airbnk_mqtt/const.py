@@ -27,6 +27,11 @@ CONF_MAC_ADDRESS = "mac_address"
 CONF_VOLTAGE_THRESHOLDS = "voltage_thresholds"
 CONF_RETRIES_NUM = "retries_num"
 
+CONF_DEVICE_MQTT_TYPE = "device_mqtt_type"
+CONF_CUSTOM_MQTT = "Custom MQTT"
+CONF_TASMOTA_MQTT = "Tasmota MQTT"
+CONF_MQTT_TYPES = [CONF_CUSTOM_MQTT, CONF_TASMOTA_MQTT]
+
 AIRBNK_DATA = "airbnk_data"
 AIRBNK_API = "airbnk_api"
 AIRBNK_DEVICES = "airbnk_devices"

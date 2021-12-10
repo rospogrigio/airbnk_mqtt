@@ -14,6 +14,8 @@ from .const import (
     CONF_MAC_ADDRESS,
     CONF_DEVICE_CONFIGS,
     CONF_VOLTAGE_THRESHOLDS,
+    CONF_DEVICE_MQTT_TYPE,
+    CONF_MQTT_TYPES,
     CONF_RETRIES_NUM,
     DEFAULT_RETRIES_NUM,
 )
@@ -28,6 +30,9 @@ STEP2_SCHEMA = vol.Schema({vol.Required(CONF_EMAIL): str, vol.Required(CONF_CODE
 
 STEP3_SCHEMA = vol.Schema(
     {
+        vol.Required(CONF_DEVICE_MQTT_TYPE, default=CONF_MQTT_TYPES[0]): vol.In(
+            CONF_MQTT_TYPES
+        ),
         vol.Required(CONF_MAC_ADDRESS): str,
         vol.Required(CONF_MQTT_TOPIC): str,
         vol.Required(SKIP_DEVICE, default=False): bool,
@@ -169,6 +174,9 @@ class FlowHandler(config_entries.ConfigFlow):
             dev_config = self.device_configs[config_key]
             action = "Skipped"
             if user_input.get(SKIP_DEVICE) is False:
+                dev_config[CONF_DEVICE_MQTT_TYPE] = user_input.get(
+                    CONF_DEVICE_MQTT_TYPE
+                )
                 dev_config[CONF_MAC_ADDRESS] = (
                     user_input.get(CONF_MAC_ADDRESS).replace(":", "").upper()
                 )
