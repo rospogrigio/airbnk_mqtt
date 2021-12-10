@@ -42,5 +42,15 @@
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
       "cannot_connect": "[%key:common::config_flow::error::cannot_connect%]"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configure options for MQTT-based Airbnk integration",
+        "data": {
+          "retries_num": "Number of retries in case of failure"
+        }
+      }
+    }
   }
 }
