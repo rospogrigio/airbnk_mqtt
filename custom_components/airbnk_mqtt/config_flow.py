@@ -13,6 +13,7 @@ from .const import (
     CONF_MQTT_TOPIC,
     CONF_MAC_ADDRESS,
     CONF_DEVICE_CONFIGS,
+    CONF_VOLTAGE_THRESHOLDS,
     CONF_RETRIES_NUM,
     DEFAULT_RETRIES_NUM,
 )
@@ -47,7 +48,7 @@ def schema_defaults(schema, dps_list=None, **defaults):
 class FlowHandler(config_entries.ConfigFlow):
     """Handle a config flow."""
 
-    VERSION = 1
+    VERSION = 2
     CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
 
     def __init__(self):
@@ -116,6 +117,7 @@ class FlowHandler(config_entries.ConfigFlow):
     async def async_get_device_configs(self, email, code):
         """Create device."""
         res_json = await AirbnkApi.retrieveAccessToken(self.hass, email, code)
+
         if res_json is None:
             return self.async_abort(reason="token_retrieval_failed")
         _LOGGER.info("Token retrieval data: %s", res_json)
@@ -161,21 +163,37 @@ class FlowHandler(config_entries.ConfigFlow):
     async def async_step_messagebox(self, user_input=None):
         # Config flow: third step.
         config_key = list(self.device_configs.keys())[self.device_index]
-        _LOGGER.debug("Configuring %s", config_key)
+        _LOGGER.debug("messagebox for device %s", config_key)
 
         if CONF_MAC_ADDRESS in user_input:
             dev_config = self.device_configs[config_key]
             action = "Skipped"
             if user_input.get(SKIP_DEVICE) is False:
-                self.entry_data[CONF_DEVICE_CONFIGS][config_key] = self.device_configs[
-                    config_key
-                ]
-                self.entry_data[CONF_DEVICE_CONFIGS][config_key][CONF_MAC_ADDRESS] = (
+                dev_config[CONF_MAC_ADDRESS] = (
                     user_input.get(CONF_MAC_ADDRESS).replace(":", "").upper()
                 )
-                self.entry_data[CONF_DEVICE_CONFIGS][config_key][
-                    CONF_MQTT_TOPIC
-                ] = user_input.get(CONF_MQTT_TOPIC)
+                dev_config[CONF_MQTT_TOPIC] = user_input.get(CONF_MQTT_TOPIC)
+
+                res_json = await AirbnkApi.getVoltageCfg(
+                    self.hass,
+                    self.entry_data[CONF_USERID],
+                    self.entry_data[CONF_TOKEN],
+                    dev_config["deviceType"],
+                    dev_config["hardwareVersion"],
+                )
+                voltage_cfg = []
+                if res_json is None:
+                    _LOGGER.error(
+                        "Failed to retrieve voltage config for device %s", config_key
+                    )
+                    voltage_cfg = [0, 0, 0, 0]
+                else:
+                    _LOGGER.debug("Retrieved voltage config: %s", res_json)
+                    for i in range(1, 5):
+                        voltage_cfg.append(float(res_json["fvoltage" + str(i)]))
+
+                dev_config[CONF_VOLTAGE_THRESHOLDS] = voltage_cfg
+                self.entry_data[CONF_DEVICE_CONFIGS][config_key] = dev_config
                 action = "Added"
 
             return self.async_show_form(

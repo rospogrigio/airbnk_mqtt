@@ -6,9 +6,16 @@ import voluptuous as vol
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
+from homeassistant.const import CONF_TOKEN
 
-from .const import DOMAIN, AIRBNK_DEVICES, CONF_DEVICE_CONFIGS
-
+from .airbnk_api import AirbnkApi
+from .const import (
+    DOMAIN,
+    AIRBNK_DEVICES,
+    CONF_DEVICE_CONFIGS,
+    CONF_VOLTAGE_THRESHOLDS,
+    CONF_USERID,
+)
 from .lock_device import AirbnkLockMqttDevice
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,6 +50,41 @@ async def async_setup(hass, config):
                 DOMAIN, context={"source": SOURCE_IMPORT}, data=conf
             )
         )
+
+    return True
+
+
+async def async_migrate_entry(hass, config_entry: ConfigEntry):
+    """Migrate old entry."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version == 1:
+
+        new_data = {**config_entry.data}
+        device_configs = new_data[CONF_DEVICE_CONFIGS]
+        for dev_id, dev_config in device_configs.items():
+            res_json = await AirbnkApi.getVoltageCfg(
+                hass,
+                new_data[CONF_USERID],
+                new_data[CONF_TOKEN],
+                dev_config["deviceType"],
+                dev_config["hardwareVersion"],
+            )
+            if res_json is None:
+                _LOGGER.error("Migration from version %s FAILED", config_entry.version)
+                return False
+            _LOGGER.debug("Retrieved voltage config: %s", res_json)
+
+            dev_config[CONF_VOLTAGE_THRESHOLDS] = []
+            for i in range(1, 5):
+                dev_config[CONF_VOLTAGE_THRESHOLDS].append(
+                    float(res_json["fvoltage" + str(i)])
+                )
+
+        config_entry.version = 2
+        hass.config_entries.async_update_entry(config_entry, data=new_data)
+
+    _LOGGER.info("Migration to version %s successful", config_entry.version)
 
     return True
 

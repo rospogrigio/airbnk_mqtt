@@ -92,7 +92,7 @@ class AirbnkApi:
     @staticmethod
     async def getCloudDevices(hass, userId, token):
         """Get array of AirbnkDevice objects and get their data."""
-        _LOGGER.info("getCloudDevices.")
+        _LOGGER.debug("calling getCloudDevices()")
 
         url = AIRBNK_CLOUD_URL + "/api/v2/lock/getAllDevicesNew"
         url += "?language=" + AIRBNK_LANGUAGE + "&userId=" + userId
@@ -127,6 +127,45 @@ class AirbnkApi:
                 dev_data[CONF_MAC_ADDRESS] = "5893D8424E3A"
                 deviceConfigs[dev_data["sn"]] = dev_data
         return deviceConfigs
+
+    @staticmethod
+    async def getVoltageCfg(hass, userId, token, lock_model, hw_version):
+        """Get array of AirbnkDevice objects and get their data."""
+        _LOGGER.debug("calling getVoltageCfg()")
+
+        url = AIRBNK_CLOUD_URL + "/api/lock/getAllInfo1"
+        url += "?language=" + AIRBNK_LANGUAGE + "&userId=" + userId
+        url += "&version=" + AIRBNK_VERSION + "&token=" + token
+        _LOGGER.info("Retrieving: %s", url)
+
+        try:
+            func = functools.partial(requests.get, url, headers=AIRBNK_HEADERS)
+            res = await hass.async_add_executor_job(func)
+        except Exception as e:
+            _LOGGER.error("GCD CALL FAILED: %s", e)
+            return None
+
+        if res.status_code != 200:
+            _LOGGER.error("GCD failed (%s): %s", res.status_code, res.text)
+            return None
+
+        json_data = res.json()
+        if json_data["code"] != 200:
+            _LOGGER.error("GCD failed2 (%s): %s", json_data["code"], res.text)
+            return None
+
+        _LOGGER.debug("getVoltageCfg succeeded (%s)", res.status_code)
+
+        if "voltageCfg" not in json_data["data"]:
+            return None
+        for volt_cfg in json_data["data"]["voltageCfg"]:
+            if (
+                volt_cfg["fdeviceType"] == lock_model
+                and volt_cfg["fhardwareVersion"] == hw_version
+            ):
+                return volt_cfg
+
+        return None
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     async def async_update(self, **kwargs):
