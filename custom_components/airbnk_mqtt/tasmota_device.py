@@ -1,7 +1,5 @@
 from __future__ import annotations
 import base64
-import binascii
-import hashlib
 import json
 import logging
 import time
@@ -33,6 +31,8 @@ from .const import (
     CONF_RETRIES_NUM,
     DEFAULT_RETRIES_NUM,
 )
+
+from .codes_generator import AirbnkCodesGenerator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ class AESCipher:
         return data[: -ord(data[len(data) - 1 :])]
 
 
-class AirbnkLockMqttDevice:
+class TasmotaMqttLockDevice:
 
     utcMinutes = None
     voltage = None
@@ -97,17 +97,12 @@ class AirbnkLockMqttDevice:
     isMagnetEnable = None
     isBABA = None
     lversionOfSoft = None
-    versionOfSoft = None
-    versionCode = None
+    sversionOfSoft = None
     serialnumber = None
     lockEvents = 0
     _lockConfig = {}
     _lockData = {}
-    lockModel = ""
-    lockSn = ""
-    manufactureKey = ""
-    bindingkey = ""
-    systemTime = 0
+    _codes_generator = None
     frame1hex = ""
     frame2hex = ""
     frame1sent = False
@@ -121,7 +116,8 @@ class AirbnkLockMqttDevice:
         self.hass = hass
         self._callbacks = set()
         self._lockConfig = device_config
-        self._lockData = self.decryptKeys(
+        self._codes_generator = AirbnkCodesGenerator()
+        self._lockData = self._codes_generator.decryptKeys(
             device_config["newSninfo"], device_config["appKey"]
         )
         self.set_options(entry_options)
@@ -302,96 +298,11 @@ class AirbnkLockMqttDevice:
         for callback_func in self._callbacks:
             callback_func()
 
-        self.generateOperationCode(lock_dir)
+        opCode = self._codes_generator.generateOperationCode(lock_dir, self.lockEvents)
+        self.frame1hex = "FF00" + opCode[0:36].decode("utf-8")
+        self.frame2hex = "FF01" + opCode[36:].decode("utf-8")
+
         await self.async_sendFrame1()
-
-    def XOR64Buffer(self, arr, value):
-        for i in range(0, 64):
-            arr[i] ^= value
-        return arr
-
-    def generateWorkingKey(self, arr, i):
-        arr2 = bytearray(72)
-        arr2[0 : len(arr)] = arr
-        arr2 = self.XOR64Buffer(arr2, 0x36)
-        arr2[71] = i & 0xFF
-        i = i >> 8
-        arr2[70] = i & 0xFF
-        i = i >> 8
-        arr2[69] = i & 0xFF
-        i = i >> 8
-        arr2[68] = i & 0xFF
-        arr2sha1 = hashlib.sha1(arr2).digest()
-        arr3 = bytearray(84)
-        arr3[0 : len(arr)] = arr
-        arr3 = self.XOR64Buffer(arr3, 0x5C)
-        arr3[64:84] = arr2sha1
-        arr3sha1 = hashlib.sha1(arr3).digest()
-        return arr3sha1
-
-    def generatePswV2(self, arr):
-        arr2 = bytearray(8)
-        for i in range(0, 4):
-            b = arr[i + 16]
-            i2 = i * 2
-            arr2[i2] = arr[(b >> 4) & 15]
-            arr2[i2 + 1] = arr[b & 15]
-        return arr2
-
-    def generateSignatureV2(self, key, i, arr):
-        lenArr = len(arr)
-        arr2 = bytearray(lenArr + 68)
-        arr2[0:20] = key[0:20]
-        arr2 = self.XOR64Buffer(arr2, 0x36)
-        arr2[64 : 64 + lenArr] = arr
-        arr2[lenArr + 67] = i & 0xFF
-        i = i >> 8
-        arr2[lenArr + 66] = i & 0xFF
-        i = i >> 8
-        arr2[lenArr + 65] = i & 0xFF
-        i = i >> 8
-        arr2[lenArr + 64] = i & 0xFF
-        arr2sha1 = hashlib.sha1(arr2).digest()
-        arr3 = bytearray(84)
-        arr3[0:20] = key[0:20]
-        arr3 = self.XOR64Buffer(arr3, 0x5C)
-        arr3[64 : 64 + len(arr2sha1)] = arr2sha1
-        arr3sha1 = hashlib.sha1(arr3).digest()
-        return self.generatePswV2(arr3sha1)
-
-    def getCheckSum(self, arr, i1, i2):
-        c = 0
-        for i in range(i1, i2):
-            c = c + arr[i]
-        return c & 0xFF
-
-    def makePackageV3(self, lockOp, tStamp):
-        code = bytearray(36)
-        code[0] = 0xAA
-        code[1] = 0x10
-        code[2] = 0x1A
-        code[3] = code[4] = 3
-        code[5] = 16 + lockOp
-        code[8] = 1
-        code[12] = tStamp & 0xFF
-        tStamp = tStamp >> 8
-        code[11] = tStamp & 0xFF
-        tStamp = tStamp >> 8
-        code[10] = tStamp & 0xFF
-        tStamp = tStamp >> 8
-        code[9] = tStamp & 0xFF
-        toEncrypt = code[4:18]
-        manKey = self._lockData["manufacturerKey"][0:16]
-        encrypted = AESCipher(manKey).encrypt(toEncrypt, False)
-        code[4:20] = encrypted
-        workingKey = self.generateWorkingKey(self._lockData["bindingKey"], 0)
-        signature = self.generateSignatureV2(workingKey, self.lockEvents, code[3:20])
-        # print("Working Key is {} {} {}".format(workingKey, lockEvents, code[3:20]))
-        # print("Signature is {}".format(signature))
-        code[20 : 20 + len(signature)] = signature
-        code[20 + len(signature)] = self.getCheckSum(code, 3, 28)
-        return binascii.hexlify(code).upper()
-        # return code
 
     def requestDetails(self, mac_addr):
         mqtt.publish(
@@ -615,38 +526,3 @@ class AirbnkLockMqttDevice:
             perc = 33.3 + 33.3 * (voltage - voltages[0]) / (voltages[1] - voltages[0])
         perc = max(perc, 0)
         return round(perc, 1)
-
-    def generateOperationCode(self, lock_dir):
-        if lock_dir != 1 and lock_dir != 2:
-            return None
-
-        self.systemTime = int(round(time.time()))
-        # self.systemTime = 1637590376
-        opCode = self.makePackageV3(lock_dir, self.systemTime)
-        _LOGGER.debug("OperationCode for dir %s is %s", lock_dir, opCode)
-        self.frame1hex = "FF00" + opCode[0:36].decode("utf-8")
-        self.frame2hex = "FF01" + opCode[36:].decode("utf-8")
-        # print("PACKET 1 IS {}".format(self.frame1hex))
-        # print("PACKET 2 IS {}".format(self.frame2hex))
-
-        return opCode
-
-    def decryptKeys(self, newSnInfo, appKey):
-        json = {}
-        dec = base64.b64decode(newSnInfo)
-        sstr2 = dec[: len(dec) - 10]
-        key = appKey[: len(appKey) - 4]
-        dec = AESCipher(bytes(key, "utf-8")).decrypt(sstr2, False)
-        lockSn = dec[0:16].decode("utf-8").rstrip("\x00")
-        json["lockSn"] = lockSn
-        json["lockModel"] = dec[80:88].decode("utf-8").rstrip("\x00")
-        manKeyEncrypted = dec[16:48]
-        bindKeyEncrypted = dec[48:80]
-        toHash = bytes(lockSn + appKey, "utf-8")
-        hash_object = hashlib.sha1()
-        hash_object.update(toHash)
-        jdkSHA1 = hash_object.hexdigest()
-        key2 = bytes.fromhex(jdkSHA1[0:32])
-        json["manufacturerKey"] = AESCipher(key2).decrypt(manKeyEncrypted, False)
-        json["bindingKey"] = AESCipher(key2).decrypt(bindKeyEncrypted, False)
-        return json
