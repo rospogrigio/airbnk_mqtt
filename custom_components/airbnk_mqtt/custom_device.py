@@ -77,8 +77,6 @@ class CustomMqttLockDevice:
         self._lockConfig = device_config
         self._codes_generator = AirbnkCodesGenerator()
         mac_addr = self._lockConfig[CONF_MAC_ADDRESS]
-        if ":" not in mac_addr:
-            self._lockConfig[CONF_MAC_ADDRESS] = ":".join(wrap(mac_addr, 2))
         self._lockData = self._codes_generator.decryptKeys(
             device_config["newSninfo"], device_config["appKey"]
         )
