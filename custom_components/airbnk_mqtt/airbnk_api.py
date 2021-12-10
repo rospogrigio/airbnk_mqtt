@@ -142,16 +142,16 @@ class AirbnkApi:
             func = functools.partial(requests.get, url, headers=AIRBNK_HEADERS)
             res = await hass.async_add_executor_job(func)
         except Exception as e:
-            _LOGGER.error("GCD CALL FAILED: %s", e)
+            _LOGGER.error("GVC CALL FAILED: %s", e)
             return None
 
         if res.status_code != 200:
-            _LOGGER.error("GCD failed (%s): %s", res.status_code, res.text)
+            _LOGGER.error("GVC failed (%s): %s", res.status_code, res.text)
             return None
 
         json_data = res.json()
         if json_data["code"] != 200:
-            _LOGGER.error("GCD failed2 (%s): %s", json_data["code"], res.text)
+            _LOGGER.error("GVC failed2 (%s): %s", json_data["code"], res.text)
             return None
 
         _LOGGER.debug("getVoltageCfg succeeded (%s)", res.status_code)
