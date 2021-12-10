@@ -270,7 +270,10 @@ class AirbnkLockMqttDevice:
                     self.curr_state = LOCK_STATE_OPERATING
                     for callback_func in self._callbacks:
                         callback_func()
-                    await self.async_sendFrame1()
+                    if self.frame1sent:
+                        await self.async_sendFrame2()
+                    else:
+                        await self.async_sendFrame1()
                 else:
                     _LOGGER.error("No more retries: command FAILED")
                     raise Exception("Failed sending frame: returned %s", msg_state)
