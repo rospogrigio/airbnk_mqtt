@@ -247,7 +247,7 @@ class CustomMqttLockDevice:
             _LOGGER.error("Wrong advert msg: %s", mqtt_advert)
             return
 
-        self.voltage = ((float)((bArr[16] << 8) | bArr[17])) * 0.1
+        self.voltage = ((float)((bArr[16] << 8) | bArr[17])) * 0.01
         self.boardModel = bArr[2]
         self.lversionOfSoft = bArr[3]
         self.sversionOfSoft = (bArr[4] << 16) | (bArr[5] << 8) | bArr[6]
