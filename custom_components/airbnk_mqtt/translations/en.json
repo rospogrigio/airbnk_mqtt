@@ -33,8 +33,9 @@
             },
             "configure_device": {
               "title": "Enter device parameters",
-              "description": "Enter the MAC address and topic for MQTT connection with {model} lock, s/n {sn}.",
+              "description": "Enter the device type, MAC address and topic\nfor MQTT connection with {model} lock, s/n {sn}.",
               "data": {
+		"device_mqtt_type": "Device MQTT type",
 		"mac_address": "MAC address",
 		"mqtt_topic": "MQTT topic",
 		"skip_device": "Skip this device"

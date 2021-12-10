@@ -113,6 +113,7 @@ class TasmotaMqttLockDevice:
     curr_try = 0
 
     def __init__(self, hass: HomeAssistant, device_config, entry_options):
+        _LOGGER.debug("Setting up TasmotaMqttLockDevice for sn %s", device_config["sn"])
         self.hass = hass
         self._callbacks = set()
         self._lockConfig = device_config
