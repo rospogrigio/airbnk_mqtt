@@ -29,6 +29,8 @@ from .const import (
     DEFAULT_RETRIES_NUM,
 )
 
+from .codes_generator import AirbnkCodesGenerator
+
 _LOGGER = logging.getLogger(__name__)
 
 MAX_NORECEIVE_TIME = 30
@@ -62,6 +64,7 @@ class CustomMqttLockDevice:
     lockEvents = 0
     _lockConfig = {}
     _lockData = {}
+    _codes_generator = None
     cmd = {}
     cmdSent = False
     last_advert_time = 0
@@ -72,10 +75,11 @@ class CustomMqttLockDevice:
         self.hass = hass
         self._callbacks = set()
         self._lockConfig = device_config
+        self._codes_generator = AirbnkCodesGenerator()
         mac_addr = self._lockConfig[CONF_MAC_ADDRESS]
         if ":" not in mac_addr:
             self._lockConfig[CONF_MAC_ADDRESS] = ":".join(wrap(mac_addr, 2))
-        self._lockData = self.decryptKeys(
+        self._lockData = self._codes_generator.decryptKeys(
             device_config["newSninfo"], device_config["appKey"]
         )
         self.set_options(entry_options)
