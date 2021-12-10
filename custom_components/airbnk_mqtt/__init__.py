@@ -16,7 +16,7 @@ from .const import (
     CONF_VOLTAGE_THRESHOLDS,
     CONF_USERID,
 )
-from .lock_device import AirbnkLockMqttDevice
+from .tasmota_device import TasmotaMqttLockDevice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     _LOGGER.debug("DEVICES ARE %s", device_configs)
     lock_devices = {}
     for dev_id, dev_config in device_configs.items():
-        lock_devices[dev_id] = AirbnkLockMqttDevice(hass, dev_config, entry.options)
+        lock_devices[dev_id] = TasmotaMqttLockDevice(hass, dev_config, entry.options)
         await lock_devices[dev_id].mqtt_subscribe()
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
