@@ -119,7 +119,7 @@ class AirbnkApi:
         res = {}
         deviceConfigs = {}
         for dev_data in json_data["data"] or []:
-            if dev_data["gateway"] == "":
+            if dev_data["boardModel"].isnumeric():
                 _LOGGER.info("Device '%s' is filtered out", dev_data["deviceName"])
             else:
                 res[dev_data["sn"]] = dev_data["deviceName"]
