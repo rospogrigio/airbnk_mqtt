@@ -3,7 +3,6 @@ import json
 import logging
 import time
 from typing import Callable
-from textwrap import wrap
 
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.components import mqtt
@@ -68,7 +67,10 @@ class CustomMqttLockDevice:
     cmd = {}
     cmdSent = False
     last_advert_time = 0
+    last_telemetry_time = 0
     is_available = False
+    retries_num = DEFAULT_RETRIES_NUM
+    curr_try = 0
 
     def __init__(self, hass: HomeAssistant, device_config, entry_options):
         _LOGGER.debug("Setting up CustomMqttLockDevice for sn %s", device_config["sn"])
@@ -76,7 +78,6 @@ class CustomMqttLockDevice:
         self._callbacks = set()
         self._lockConfig = device_config
         self._codes_generator = AirbnkCodesGenerator()
-        mac_addr = self._lockConfig[CONF_MAC_ADDRESS]
         self._lockData = self._codes_generator.decryptKeys(
             device_config["newSninfo"], device_config["appKey"]
         )
@@ -102,9 +103,10 @@ class CustomMqttLockDevice:
 
     def check_availability(self):
         curr_time = int(round(time.time()))
-        deltatime = curr_time - self.last_advert_time
-        # _LOGGER.debug("Last reply was %s secs ago", deltatime)
-        if deltatime >= MAX_NORECEIVE_TIME:
+        deltatime1 = curr_time - self.last_advert_time
+        deltatime2 = curr_time - self.last_telemetry_time
+        # _LOGGER.debug("Last reply was %s - %s secs ago", deltatime1, deltatime2)
+        if min(deltatime1, deltatime2) >= MAX_NORECEIVE_TIME:
             self.is_available = False
 
     @property
@@ -173,6 +175,8 @@ class CustomMqttLockDevice:
     def parse_telemetry_message(self, msg):
         # TODO
         _LOGGER.debug("Received telemetry %s", msg)
+        self.last_telemetry_time = int(round(time.time()))
+        self.is_available = True
 
     def parse_adv_message(self, msg):
         _LOGGER.debug("Received adv %s", msg)
@@ -210,9 +214,20 @@ class CustomMqttLockDevice:
 
         msg_state = payload["success"]
         if msg_state is False:
-            _LOGGER.error("Failed sending command: returned %s", msg_state)
-            self.curr_state = LOCK_STATE_FAILED
-            raise Exception("Failed sending command: returned %s", msg_state)
+            if self.curr_try < self.retries_num:
+                self.curr_try += 1
+                time.sleep(0.5)
+                _LOGGER.debug("Retrying: attempt %i", self.curr_try)
+                self.curr_state = LOCK_STATE_OPERATING
+                for callback_func in self._callbacks:
+                    callback_func()
+                self.send_mqtt_command()
+            else:
+                _LOGGER.error("No more retries: command FAILED")
+                self.curr_state = LOCK_STATE_FAILED
+                for callback_func in self._callbacks:
+                    callback_func()
+                raise Exception("Failed sending command: returned %s", msg_state)
             return
 
         msg_sign = payload["sign"]
@@ -224,6 +239,7 @@ class CustomMqttLockDevice:
 
     async def operateLock(self, lock_dir):
         _LOGGER.debug("operateLock called (%s)", lock_dir)
+        self.curr_try = 0
         self.cmdSent = False
         self.curr_state = LOCK_STATE_OPERATING
         for callback_func in self._callbacks:
@@ -234,6 +250,9 @@ class CustomMqttLockDevice:
         self.cmd["command1"] = "FF00" + opCode[0:36].decode("utf-8")
         self.cmd["command2"] = "FF01" + opCode[36:].decode("utf-8")
         self.cmd["sign"] = self._codes_generator.systemTime
+        self.send_mqtt_command()
+
+    def send_mqtt_command(self):
         mqtt.publish(
             self.hass,
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
