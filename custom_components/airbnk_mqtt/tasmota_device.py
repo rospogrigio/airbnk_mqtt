@@ -322,14 +322,14 @@ class TasmotaMqttLockDevice:
         )
 
     async def async_sendFrame1(self):
-        await mqtt.async_publish(
+        mqtt.publish(
             self.hass,
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
             self.BLEOPWritePAYLOADGen(self.frame1hex),
         )
 
     async def async_sendFrame2(self):
-        await mqtt.async_publish(
+        mqtt.publish(
             self.hass,
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
             self.BLEOPWritePAYLOADGen(self.frame2hex),
