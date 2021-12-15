@@ -234,6 +234,8 @@ class CustomMqttLockDevice:
         if msg_sign == self.cmd["sign"]:
             self.cmdSent = True
 
+        self.parse_new_lockStatus(payload["lockStatus"])
+
         for callback_func in self._callbacks:
             callback_func()
 
@@ -258,6 +260,18 @@ class CustomMqttLockDevice:
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
             json.dumps(self.cmd),
         )
+
+    def parse_new_lockStatus(self, lockStatus):
+        _LOGGER.debug("Parsing new lockStatus: %s", lockStatus)
+        bArr = bytearray.fromhex(lockStatus)
+        if bArr[0] != 0xAA or bArr[3] != 0x02 or bArr[4] != 0x04:
+            _LOGGER.error("Wrong lockStatus msg: %s", lockStatus)
+            return
+
+        lockEvents = (bArr[10] << 24) | (bArr[11] << 16) | (bArr[12] << 8) | bArr[13]
+        self.lockEvents = lockEvents
+        self.voltage = ((float)((bArr[14] << 8) | bArr[15])) * 0.01
+        self.curr_state = (bArr[16] >> 4) & 3
 
     def parse_MQTT_advert(self, mqtt_advert):
         _LOGGER.debug("Parsing advert msg: %s", mqtt_advert)
