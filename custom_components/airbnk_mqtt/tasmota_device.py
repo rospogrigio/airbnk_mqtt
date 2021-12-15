@@ -259,9 +259,6 @@ class TasmotaMqttLockDevice:
             msg_state = payload[msg_type]["state"]
             if "FAIL" in msg_state:
                 _LOGGER.error("Failed sending frame: returned %s", msg_state)
-                self.curr_state = LOCK_STATE_FAILED
-                for callback_func in self._callbacks:
-                    callback_func()
 
                 if self.curr_try < self.retries_num:
                     self.curr_try += 1
@@ -276,6 +273,9 @@ class TasmotaMqttLockDevice:
                         await self.async_sendFrame1()
                 else:
                     _LOGGER.error("No more retries: command FAILED")
+                    self.curr_state = LOCK_STATE_FAILED
+                    for callback_func in self._callbacks:
+                        callback_func()
                     raise Exception("Failed sending frame: returned %s", msg_state)
 
                 return
