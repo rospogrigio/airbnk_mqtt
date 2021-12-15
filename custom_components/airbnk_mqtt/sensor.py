@@ -51,7 +51,7 @@ class AirbnkSensor(Entity):
 
     @staticmethod
     def factory(hass, device, monitored_attr):
-        """Initialize any DaikinSensor."""
+        """Initialize any AirbnkSensor."""
         cls = {
             SENSOR_TYPE_STATE: AirbnkTextSensor,
             SENSOR_TYPE_BATTERY: AirbnkBatterySensor,
@@ -62,7 +62,7 @@ class AirbnkSensor(Entity):
         return cls(hass, device, monitored_attr)
 
     def __init__(self, hass, device, monitored_attr: str):
-        """Initialize the zone."""
+        """Initialize the sensor."""
         self.hass = hass
         self._device = device
         self._monitored_attribute = monitored_attr

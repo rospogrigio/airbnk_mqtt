@@ -35,7 +35,7 @@ SIGNAL_UPDATE_ENTITY = "airbnk_update"
 
 MIN_TIME_BETWEEN_UPDATES = datetime.timedelta(seconds=15)
 
-COMPONENT_TYPES = ["cover", "sensor"]
+COMPONENT_TYPES = ["binary_sensor", "cover", "sensor"]
 
 CONFIG_SCHEMA = vol.Schema(vol.All({DOMAIN: vol.Schema({})}), extra=vol.ALLOW_EXTRA)
 
