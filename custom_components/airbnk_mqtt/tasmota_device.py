@@ -16,6 +16,7 @@ from .const import (
     DOMAIN as AIRBNK_DOMAIN,
     SENSOR_TYPE_STATE,
     SENSOR_TYPE_BATTERY,
+    SENSOR_TYPE_BATTERY_LOW,
     SENSOR_TYPE_VOLTAGE,
     SENSOR_TYPE_LAST_ADVERT,
     SENSOR_TYPE_SIGNAL_STRENGTH,
@@ -512,6 +513,7 @@ class TasmotaMqttLockDevice:
         self._lockData[SENSOR_TYPE_STATE] = self.state
         self._lockData[SENSOR_TYPE_BATTERY] = self.battery_perc
         self._lockData[SENSOR_TYPE_VOLTAGE] = self.voltage
+        self._lockData[SENSOR_TYPE_BATTERY_LOW] = self.isLowBattery
         # print("LOCK: {}".format(self._lockData))
 
         return

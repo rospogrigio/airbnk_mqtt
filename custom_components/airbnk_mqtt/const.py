@@ -1,4 +1,4 @@
-"""Constants for Daikin MQTT integration."""
+"""Constants for Airbnk MQTT integration."""
 
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
@@ -59,6 +59,8 @@ SENSOR_TYPE_BATTERY = "battery"
 SENSOR_TYPE_VOLTAGE = "voltage"
 SENSOR_TYPE_LAST_ADVERT = "last_advert"
 SENSOR_TYPE_SIGNAL_STRENGTH = "signal_strength"
+
+SENSOR_TYPE_BATTERY_LOW = "battery_low"
 
 SENSOR_TYPES = {
     SENSOR_TYPE_STATE: {
