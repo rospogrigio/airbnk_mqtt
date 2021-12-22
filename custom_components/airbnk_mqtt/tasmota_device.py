@@ -292,11 +292,11 @@ class TasmotaMqttLockDevice:
                     callback_func()
 
     async def operateLock(self, lock_dir):
-        self.curr_try = 0
         _LOGGER.debug("operateLock called (%s): attempt %i", lock_dir, self.curr_try)
+        self.curr_state = LOCK_STATE_OPERATING
+        self.curr_try = 0
         self.frame1sent = False
         self.frame2sent = False
-        self.curr_state = LOCK_STATE_OPERATING
         for callback_func in self._callbacks:
             callback_func()
 

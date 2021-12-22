@@ -240,9 +240,9 @@ class CustomMqttLockDevice:
 
     async def operateLock(self, lock_dir):
         _LOGGER.debug("operateLock called (%s)", lock_dir)
+        self.curr_state = LOCK_STATE_OPERATING
         self.curr_try = 0
         self.cmdSent = False
-        self.curr_state = LOCK_STATE_OPERATING
         for callback_func in self._callbacks:
             callback_func()
 
