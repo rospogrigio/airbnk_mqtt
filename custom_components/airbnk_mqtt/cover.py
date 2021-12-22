@@ -110,11 +110,21 @@ class AirbnkLock(CoverEntity):
 
     async def async_open_cover(self, **kwargs):
         """Open the cover."""
+        if self._device.curr_state == LOCK_STATE_OPERATING:
+            _LOGGER.warning("Operation already in progress: please wait")
+            raise Exception("Operation already in progress: please wait")
+            return
+
         _LOGGER.debug("Launching command to open")
         await self._device.operateLock(1)
 
     async def async_close_cover(self, **kwargs):
         """Close cover."""
+        if self._device.curr_state == LOCK_STATE_OPERATING:
+            _LOGGER.warning("Operation already in progress: please wait")
+            raise Exception("Operation already in progress: please wait")
+            return
+
         _LOGGER.debug("Launching command to close")
         await self._device.operateLock(2)
 
