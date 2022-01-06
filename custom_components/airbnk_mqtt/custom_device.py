@@ -267,6 +267,24 @@ class CustomMqttLockDevice:
         bArr = bytearray.fromhex(lockStatus)
         if bArr[0] != 0xAA or bArr[3] != 0x02 or bArr[4] != 0x04:
             _LOGGER.error("Wrong lockStatus msg: %s", lockStatus)
+
+            if self.curr_try < self.retries_num:
+                self.curr_try += 1
+                time.sleep(0.5)
+                _LOGGER.debug("Retrying: attempt %i", self.curr_try)
+                self.curr_state = LOCK_STATE_OPERATING
+                for callback_func in self._callbacks:
+                    callback_func()
+                self.send_mqtt_command()
+            else:
+                _LOGGER.error("No more retries: command FAILED")
+                self.curr_state = LOCK_STATE_FAILED
+                for callback_func in self._callbacks:
+                    callback_func()
+                raise Exception(
+                    "Failed sending command: received status %s",
+                    lockStatus
+                )
             return
 
         lockEvents = (bArr[10] << 24) | (bArr[11] << 16) | (bArr[12] << 8) | bArr[13]
