@@ -1,7 +1,6 @@
 from __future__ import annotations
 import base64
 import json
-import logging
 import time
 from typing import Callable
 
@@ -34,8 +33,7 @@ from .const import (
 )
 
 from .codes_generator import AirbnkCodesGenerator
-
-_LOGGER = logging.getLogger(__name__)
+from .airbnk_logger import AirbnkLogger
 
 MAX_NORECEIVE_TIME = 30
 
@@ -114,7 +112,10 @@ class TasmotaMqttLockDevice:
     curr_try = 0
 
     def __init__(self, hass: HomeAssistant, device_config, entry_options):
-        _LOGGER.debug("Setting up TasmotaMqttLockDevice for sn %s", device_config["sn"])
+        self.logger = AirbnkLogger(__name__)
+        self.logger.debug(
+            "Setting up TasmotaMqttLockDevice for sn %s" % device_config["sn"]
+        )
         self.hass = hass
         self._callbacks = set()
         self._lockConfig = device_config
@@ -150,7 +151,7 @@ class TasmotaMqttLockDevice:
     def check_availability(self):
         curr_time = int(round(time.time()))
         deltatime = curr_time - self.last_advert_time
-        # _LOGGER.debug("Last reply was %s secs ago", deltatime)
+        # self.logger.debug("Last reply was %s secs ago" % deltatime)
         if deltatime >= MAX_NORECEIVE_TIME:
             self.is_available = False
 
@@ -192,7 +193,7 @@ class TasmotaMqttLockDevice:
 
     def set_options(self, entry_options):
         """Register callback, called when lock changes state."""
-        _LOGGER.debug("Options set: %s", entry_options)
+        self.logger.debug("Options set: %s" % entry_options)
         self.retries_num = entry_options.get(CONF_RETRIES_NUM, DEFAULT_RETRIES_NUM)
 
     def register_callback(self, callback: Callable[[], None]) -> None:
@@ -214,7 +215,7 @@ class TasmotaMqttLockDevice:
                 self.type2(barr, sn)
 
     async def async_parse_MQTT_message(self, msg):
-        _LOGGER.debug("Received msg %s", msg)
+        self.logger.debug("Received msg %s" % msg)
         payload = json.loads(msg)
         msg_type = list(payload.keys())[0]
         mac_address = self._lockConfig[CONF_MAC_ADDRESS]
@@ -243,11 +244,13 @@ class TasmotaMqttLockDevice:
                 self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
                 if deltatime < MAX_NORECEIVE_TIME:
                     self.is_available = True
-                    _LOGGER.debug("Time from last message: %s secs", str(deltatime))
+                    self.logger.debug(
+                        "Time from last message: %s secs" % str(deltatime)
+                    )
                 elif time2 != 0:
-                    _LOGGER.error(
-                        "Time from last message: %s secs: device unavailable",
-                        str(deltatime),
+                    self.logger.error(
+                        "Time from last message: %s secs: device unavailable"
+                        % str(deltatime)
                     )
                     self.is_available = False
 
@@ -259,12 +262,12 @@ class TasmotaMqttLockDevice:
                 return
             msg_state = payload[msg_type]["state"]
             if "FAIL" in msg_state:
-                _LOGGER.error("Failed sending frame: returned %s", msg_state)
+                self.logger.error("Failed sending frame: returned %s" % msg_state)
 
                 if self.curr_try < self.retries_num:
                     self.curr_try += 1
                     time.sleep(0.5)
-                    _LOGGER.debug("Retrying: attempt %i", self.curr_try)
+                    self.logger.debug("Retrying: attempt %i" % self.curr_try)
                     self.curr_state = LOCK_STATE_OPERATING
                     for callback_func in self._callbacks:
                         callback_func()
@@ -273,7 +276,7 @@ class TasmotaMqttLockDevice:
                     else:
                         await self.async_sendFrame1()
                 else:
-                    _LOGGER.error("No more retries: command FAILED")
+                    self.logger.error("No more retries: command FAILED")
                     self.curr_state = LOCK_STATE_FAILED
                     for callback_func in self._callbacks:
                         callback_func()
@@ -292,7 +295,9 @@ class TasmotaMqttLockDevice:
                     callback_func()
 
     async def operateLock(self, lock_dir):
-        _LOGGER.debug("operateLock called (%s): attempt %i", lock_dir, self.curr_try)
+        self.logger.debug(
+            "operateLock called (%s): attempt %i" % (lock_dir, self.curr_try)
+        )
         self.curr_state = LOCK_STATE_OPERATING
         self.curr_try = 0
         self.frame1sent = False
@@ -340,7 +345,7 @@ class TasmotaMqttLockDevice:
         mac_address = self._lockConfig[CONF_MAC_ADDRESS]
         write_UUID = write_characteristic_UUID
         payload = f"M:{mac_address} s:{service_UUID} c:{write_UUID} w:{frame} go"
-        _LOGGER.debug("Sending payload [ %s ]", payload)
+        self.logger.debug("Sending payload [ %s ]" % payload)
         return payload
 
     def BLEOPreadPAYLOADGen(self):
@@ -471,7 +476,7 @@ class TasmotaMqttLockDevice:
 
         bArr = bytearray.fromhex(mqtt_advert)
         if bArr[0] != 0xBA or bArr[1] != 0xBA:
-            _LOGGER.error("Wrong advert msg: %s", mqtt_advert)
+            self.logger.error("Wrong advert msg: %s" % mqtt_advert)
             return
 
         self.voltage = ((float)((bArr[16] << 8) | bArr[17])) * 0.01
@@ -480,10 +485,9 @@ class TasmotaMqttLockDevice:
         self.sversionOfSoft = (bArr[4] << 16) | (bArr[5] << 8) | bArr[6]
         serialnumber = bArr[7:16].decode("utf-8").strip("\0")
         if serialnumber != self._lockConfig["sn"]:
-            _LOGGER.error(
-                "ERROR: s/n in advert (%s) is different from cloud data (%s)",
-                serialnumber,
-                self._lockConfig["sn"],
+            self.logger.error(
+                "ERROR: s/n in advert (%s) is different from cloud data (%s)"
+                % (serialnumber, self._lockConfig["sn"])
             )
 
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]

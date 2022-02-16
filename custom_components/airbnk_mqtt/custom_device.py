@@ -1,6 +1,5 @@
 from __future__ import annotations
 import json
-import logging
 import time
 from typing import Callable
 
@@ -30,8 +29,8 @@ from .const import (
 )
 
 from .codes_generator import AirbnkCodesGenerator
+from .airbnk_logger import AirbnkLogger
 
-_LOGGER = logging.getLogger(__name__)
 
 MAX_NORECEIVE_TIME = 30
 
@@ -74,7 +73,10 @@ class CustomMqttLockDevice:
     curr_try = 0
 
     def __init__(self, hass: HomeAssistant, device_config, entry_options):
-        _LOGGER.debug("Setting up CustomMqttLockDevice for sn %s", device_config["sn"])
+        self.logger = AirbnkLogger(__name__)
+        self.logger.debug(
+            "Setting up CustomMqttLockDevice for sn %s" % device_config["sn"]
+        )
         self.hass = hass
         self._callbacks = set()
         self._lockConfig = device_config
@@ -106,7 +108,10 @@ class CustomMqttLockDevice:
         curr_time = int(round(time.time()))
         deltatime1 = curr_time - self.last_advert_time
         deltatime2 = curr_time - self.last_telemetry_time
-        # _LOGGER.debug("Last reply was %s - %s secs ago", deltatime1, deltatime2)
+        # self.logger.debug(
+        #     "Last reply was %s - %s secs ago" %
+        #     (deltatime1, deltatime2)
+        # )
         if min(deltatime1, deltatime2) >= MAX_NORECEIVE_TIME:
             self.is_available = False
 
@@ -137,7 +142,7 @@ class CustomMqttLockDevice:
 
     def set_options(self, entry_options):
         """Register callback, called when lock changes state."""
-        _LOGGER.debug("Options set: %s", entry_options)
+        self.logger.debug("Options set: %s" % entry_options)
         self.retries_num = entry_options.get(CONF_RETRIES_NUM, DEFAULT_RETRIES_NUM)
 
     async def mqtt_subscribe(self):
@@ -175,17 +180,17 @@ class CustomMqttLockDevice:
 
     def parse_telemetry_message(self, msg):
         # TODO
-        _LOGGER.debug("Received telemetry %s", msg)
+        self.logger.debug("Received telemetry %s" % msg)
         self.last_telemetry_time = int(round(time.time()))
         self.is_available = True
 
     def parse_adv_message(self, msg):
-        _LOGGER.debug("Received adv %s", msg)
+        self.logger.debug("Received adv %s" % msg)
         payload = json.loads(msg)
         mac_address = self._lockConfig[CONF_MAC_ADDRESS]
         mqtt_advert = payload["data"]
         mqtt_mac = payload["mac"].replace(":", "").upper()
-        _LOGGER.debug("Config mac %s, received %s", mac_address, mqtt_mac)
+        self.logger.debug("Config mac %s, received %s" % (mac_address, mqtt_mac))
         if mqtt_mac != mac_address.upper():
             return
 
@@ -199,13 +204,13 @@ class CustomMqttLockDevice:
         deltatime = self.last_advert_time - time2
         self._lockData[SENSOR_TYPE_LAST_ADVERT] = deltatime
         self.is_available = True
-        _LOGGER.debug("Time from last message: %s secs", str(deltatime))
+        self.logger.debug("Time from last message: %s secs" % str(deltatime))
 
         for callback_func in self._callbacks:
             callback_func()
 
     def parse_operation_message(self, msg):
-        _LOGGER.debug("Received operation result %s", msg)
+        self.logger.debug("Received operation result %s" % msg)
         payload = json.loads(msg)
         mac_address = self._lockConfig[CONF_MAC_ADDRESS]
         mqtt_mac = payload["mac"].replace(":", "").upper()
@@ -218,13 +223,13 @@ class CustomMqttLockDevice:
             if self.curr_try < self.retries_num:
                 self.curr_try += 1
                 time.sleep(0.5)
-                _LOGGER.debug("Retrying: attempt %i", self.curr_try)
+                self.logger.debug("Retrying: attempt %i" % self.curr_try)
                 self.curr_state = LOCK_STATE_OPERATING
                 for callback_func in self._callbacks:
                     callback_func()
                 self.send_mqtt_command()
             else:
-                _LOGGER.error("No more retries: command FAILED")
+                self.logger.error("No more retries: command FAILED")
                 self.curr_state = LOCK_STATE_FAILED
                 for callback_func in self._callbacks:
                     callback_func()
@@ -241,7 +246,7 @@ class CustomMqttLockDevice:
             callback_func()
 
     async def operateLock(self, lock_dir):
-        _LOGGER.debug("operateLock called (%s)", lock_dir)
+        self.logger.debug("operateLock called (%s)" % lock_dir)
         self.curr_state = LOCK_STATE_OPERATING
         self.curr_try = 0
         self.cmdSent = False
@@ -263,27 +268,26 @@ class CustomMqttLockDevice:
         )
 
     def parse_new_lockStatus(self, lockStatus):
-        _LOGGER.debug("Parsing new lockStatus: %s", lockStatus)
+        self.logger.debug("Parsing new lockStatus: %s" % lockStatus)
         bArr = bytearray.fromhex(lockStatus)
         if bArr[0] != 0xAA or bArr[3] != 0x02 or bArr[4] != 0x04:
-            _LOGGER.error("Wrong lockStatus msg: %s", lockStatus)
+            self.logger.error("Wrong lockStatus msg: %s" % lockStatus)
 
             if self.curr_try < self.retries_num:
                 self.curr_try += 1
                 time.sleep(0.5)
-                _LOGGER.debug("Retrying: attempt %i", self.curr_try)
+                self.logger.debug("Retrying: attempt %i" % self.curr_try)
                 self.curr_state = LOCK_STATE_OPERATING
                 for callback_func in self._callbacks:
                     callback_func()
                 self.send_mqtt_command()
             else:
-                _LOGGER.error("No more retries: command FAILED")
+                self.logger.error("No more retries: command FAILED")
                 self.curr_state = LOCK_STATE_FAILED
                 for callback_func in self._callbacks:
                     callback_func()
                 raise Exception(
-                    "Failed sending command: received status %s",
-                    lockStatus
+                    "Failed sending command: received status %s", lockStatus
                 )
             return
 
@@ -293,10 +297,10 @@ class CustomMqttLockDevice:
         self.curr_state = (bArr[16] >> 4) & 3
 
     def parse_MQTT_advert(self, mqtt_advert):
-        _LOGGER.debug("Parsing advert msg: %s", mqtt_advert)
+        self.logger.debug("Parsing advert msg: %s" % mqtt_advert)
         bArr = bytearray.fromhex(mqtt_advert)
         if bArr[0] != 0xBA or bArr[1] != 0xBA:
-            _LOGGER.error("Wrong advert msg: %s", mqtt_advert)
+            self.logger.error("Wrong advert msg: %s" % mqtt_advert)
             return
 
         self.voltage = ((float)((bArr[16] << 8) | bArr[17])) * 0.01
@@ -305,10 +309,9 @@ class CustomMqttLockDevice:
         self.sversionOfSoft = (bArr[4] << 16) | (bArr[5] << 8) | bArr[6]
         serialnumber = bArr[7:16].decode("utf-8").strip("\0")
         if serialnumber != self._lockConfig["sn"]:
-            _LOGGER.error(
-                "ERROR: s/n in advert (%s) is different from cloud data (%s)",
-                serialnumber,
-                self._lockConfig["sn"],
+            self.logger.error(
+                "ERROR: s/n in advert (%s) is different from cloud data (%s)"
+                % (serialnumber, self._lockConfig["sn"])
             )
 
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]
