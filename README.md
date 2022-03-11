@@ -14,7 +14,9 @@ Supported devices (using an ESP32 device as a Wifi-to-Bluetooth bridge):
 
 # Prerequisites:
 
-1. Have an ESP32 device with Tasmota Bluetooth firmware installed (see tasmota32-bluetooth.bin here: http://ota.tasmota.com/tasmota32/release/ for release version or here http://ota.tasmota.com/tasmota32/ for development version).
+1. a) Have an ESP32 device with Tasmota Bluetooth firmware installed (see tasmota32-bluetooth.bin here: http://ota.tasmota.com/tasmota32/release/ for release version or here http://ota.tasmota.com/tasmota32/ for development version), **OR**
+
+   b) Have an ESP32 device with @formatBCE's custom firmware (see https://github.com/formatBCE/Airbnk-MQTTOpenGateway)
 2. Set up a MQTT broker (mosquitto or HA add-on: see https://www.home-assistant.io/docs/mqtt/broker/).
 3. Configure the ESP32 to connect to it. In the MQTT Configuration page, take note of the MQTT topic of the ESP32, or set it at your desire.
 4. Determine the MAC address of your lock.
