@@ -118,6 +118,7 @@ class TasmotaMqttLockDevice:
         )
         self.hass = hass
         self._callbacks = set()
+        self._unsubscribe_callbacks = set()
         self._lockConfig = device_config
         self._codes_generator = AirbnkCodesGenerator()
         self._lockData = self._codes_generator.decryptKeys(
@@ -180,21 +181,33 @@ class TasmotaMqttLockDevice:
     def state(self):
         return LOCK_STATE_STRINGS[self.curr_state]
 
-    async def mqtt_subscribe(self):
-        @callback
-        async def message_received(_p0) -> None:
-            await self.async_parse_MQTT_message(_p0.payload)
-
-        await mqtt.async_subscribe(
-            self.hass,
-            BLEStateTopic % self._lockConfig[CONF_MQTT_TOPIC],
-            msg_callback=message_received,
-        )
-
     def set_options(self, entry_options):
         """Register callback, called when lock changes state."""
         self.logger.debug("Options set: %s" % entry_options)
         self.retries_num = entry_options.get(CONF_RETRIES_NUM, DEFAULT_RETRIES_NUM)
+
+    async def mqtt_subscribe(self):
+        if "mqtt" not in self.hass.data:
+            self.logger.error(
+                "MQTT is not connected: cannot subscribe. "
+                "Have you configured an MQTT Broker?"
+            )
+            return
+
+        @callback
+        async def message_received(_p0) -> None:
+            await self.async_parse_MQTT_message(_p0.payload)
+
+        callback_func = await mqtt.async_subscribe(
+            self.hass,
+            BLEStateTopic % self._lockConfig[CONF_MQTT_TOPIC],
+            msg_callback=message_received,
+        )
+        self._unsubscribe_callbacks.add(callback_func)
+
+    async def mqtt_unsubscribe(self):
+        for callback_func in self._unsubscribe_callbacks:
+            callback_func()
 
     def register_callback(self, callback: Callable[[], None]) -> None:
         """Register callback, called when lock changes state."""
