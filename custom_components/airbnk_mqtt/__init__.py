@@ -6,7 +6,7 @@ import voluptuous as vol
 
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.helpers.typing import HomeAssistantType
-from homeassistant.const import CONF_TOKEN
+from homeassistant.const import CONF_TOKEN, SERVICE_RELOAD
 
 from .airbnk_api import AirbnkApi
 from .const import (
@@ -42,6 +42,26 @@ CONFIG_SCHEMA = vol.Schema(vol.All({DOMAIN: vol.Schema({})}), extra=vol.ALLOW_EX
 
 async def async_setup(hass, config):
     """Setup the Airbnk component."""
+
+    async def _handle_reload(service):
+        """Handle reload service call."""
+        _LOGGER.debug("Service %s.reload called: reloading integration", DOMAIN)
+
+        current_entries = hass.config_entries.async_entries(DOMAIN)
+
+        reload_tasks = [
+            hass.config_entries.async_reload(entry.entry_id)
+            for entry in current_entries
+        ]
+
+        await asyncio.gather(*reload_tasks)
+        _LOGGER.debug("RELOAD DONE")
+
+    hass.helpers.service.async_register_admin_service(
+        DOMAIN,
+        SERVICE_RELOAD,
+        _handle_reload,
+    )
 
     if DOMAIN not in config:
         return True
@@ -125,15 +145,21 @@ async def async_options_updated(hass, entry):
 
 async def async_unload_entry(hass, config_entry):
     """Unload a config entry."""
+    _LOGGER.debug("Unloading %s %s", config_entry.entry_id, config_entry.data)
     await asyncio.wait(
         [
             hass.config_entries.async_forward_entry_unload(config_entry, component)
             for component in COMPONENT_TYPES
         ]
     )
-    hass.data[DOMAIN].pop(config_entry.entry_id)
-    if not hass.data[DOMAIN]:
-        hass.data.pop(DOMAIN)
+    for dev_id, device in hass.data[DOMAIN][AIRBNK_DEVICES].items():
+        _LOGGER.debug("Unsubscribing %s", dev_id)
+        await device.mqtt_unsubscribe()
+
+    hass.data[DOMAIN].pop(AIRBNK_DEVICES)
+    # if not hass.data[DOMAIN]:
+    #     hass.data.pop(DOMAIN)
+    _LOGGER.debug("...done")
     return True
 
 
