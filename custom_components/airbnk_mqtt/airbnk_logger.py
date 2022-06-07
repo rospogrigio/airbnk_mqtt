@@ -37,8 +37,8 @@ class AirbnkLogger:
 
     def warning(self, msg):
         self.append_to_log("WARNING", msg)
-        self.logger.debug(msg)
+        self.logger.warning(msg)
 
     def error(self, msg):
         self.append_to_log("ERROR", msg)
-        self.logger.debug(msg)
+        self.logger.error(msg)
