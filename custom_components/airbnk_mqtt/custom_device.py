@@ -85,6 +85,7 @@ class CustomMqttLockDevice:
             device_config["newSninfo"], device_config["appKey"]
         )
         self.set_options(entry_options)
+        self.logger.debug("...done")
 
     @property
     def device_info(self):
@@ -146,6 +147,13 @@ class CustomMqttLockDevice:
         self.retries_num = entry_options.get(CONF_RETRIES_NUM, DEFAULT_RETRIES_NUM)
 
     async def mqtt_subscribe(self):
+        if "mqtt" not in self.hass.data:
+            self.logger.error(
+                "MQTT is not connected: cannot subscribe. "
+                "Have you configured an MQTT Broker?"
+            )
+            return
+
         @callback
         async def adv_received(_p0) -> None:
             self.parse_adv_message(_p0.payload)
