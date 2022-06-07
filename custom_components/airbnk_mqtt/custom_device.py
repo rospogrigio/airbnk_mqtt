@@ -79,6 +79,7 @@ class CustomMqttLockDevice:
         )
         self.hass = hass
         self._callbacks = set()
+        self._unsubscribe_callbacks = set()
         self._lockConfig = device_config
         self._codes_generator = AirbnkCodesGenerator()
         self._lockData = self._codes_generator.decryptKeys(
@@ -158,21 +159,30 @@ class CustomMqttLockDevice:
         async def telemetry_msg_received(_p0) -> None:
             self.parse_telemetry_message(_p0.payload)
 
-        await mqtt.async_subscribe(
+        callback_func = await mqtt.async_subscribe(
             self.hass,
             BLEStateTopic % self._lockConfig[CONF_MQTT_TOPIC],
             msg_callback=adv_received,
         )
-        await mqtt.async_subscribe(
+        self._unsubscribe_callbacks.add(callback_func)
+
+        callback_func = await mqtt.async_subscribe(
             self.hass,
             BLETelemetryTopic % self._lockConfig[CONF_MQTT_TOPIC],
             msg_callback=telemetry_msg_received,
         )
-        await mqtt.async_subscribe(
+        self._unsubscribe_callbacks.add(callback_func)
+
+        callback_func = await mqtt.async_subscribe(
             self.hass,
             BLEOperationReportTopic % self._lockConfig[CONF_MQTT_TOPIC],
             msg_callback=operation_msg_received,
         )
+        self._unsubscribe_callbacks.add(callback_func)
+
+    async def mqtt_unsubscribe(self):
+        for callback_func in self._unsubscribe_callbacks:
+            callback_func()
 
     def register_callback(self, callback: Callable[[], None]) -> None:
         """Register callback, called when lock changes state."""
