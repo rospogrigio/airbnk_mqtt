@@ -1,4 +1,4 @@
-[![](https://img.shields.io/github/release/rospogrigio/airbnk/all.svg?style=for-the-badge)](https://github.com/rospogrigio/airbnk/releases)
+[![](https://img.shields.io/github/release/rospogrigio/airbnk_mqtt/all.svg?style=for-the-badge)](https://github.com/rospogrigio/airbnk/releases)
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
 [![](https://img.shields.io/badge/MAINTAINER-%40rospogrigio-green?style=for-the-badge)](https://github.com/rospogrigio)
 
