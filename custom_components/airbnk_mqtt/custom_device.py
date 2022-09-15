@@ -65,7 +65,6 @@ class CustomMqttLockDevice:
     _lockData = {}
     _codes_generator = None
     cmd = {}
-    cmdSent = False
     last_advert_time = 0
     last_telemetry_time = 0
     is_available = False
@@ -236,6 +235,13 @@ class CustomMqttLockDevice:
         if mqtt_mac != mac_address.upper():
             return
 
+        msg_sign = payload["sign"]
+        self.logger.error("Received sign: %s" % msg_sign)
+        self.logger.error("Command sign: %s" % self.cmd["sign"])
+        if msg_sign != self.cmd["sign"]:
+            self.logger.error("Returning.")
+            return
+
         msg_state = payload["success"]
         if msg_state is False:
             if self.curr_try < self.retries_num:
@@ -253,21 +259,15 @@ class CustomMqttLockDevice:
                     callback_func()
                 raise Exception("Failed sending command: returned %s", msg_state)
             return
+        else:
+            for callback_func in self._callbacks:
+                callback_func()
 
-        msg_sign = payload["sign"]
-        if msg_sign == self.cmd["sign"]:
-            self.cmdSent = True
-
-        self.parse_new_lockStatus(payload["lockStatus"])
-
-        for callback_func in self._callbacks:
-            callback_func()
 
     async def operateLock(self, lock_dir):
         self.logger.debug("operateLock called (%s)" % lock_dir)
         self.curr_state = LOCK_STATE_OPERATING
         self.curr_try = 0
-        self.cmdSent = False
         for callback_func in self._callbacks:
             callback_func()
 
@@ -284,35 +284,6 @@ class CustomMqttLockDevice:
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
             json.dumps(self.cmd),
         )
-
-    def parse_new_lockStatus(self, lockStatus):
-        self.logger.debug("Parsing new lockStatus: %s" % lockStatus)
-        bArr = bytearray.fromhex(lockStatus)
-        if bArr[0] != 0xAA or bArr[3] != 0x02 or bArr[4] != 0x04:
-            self.logger.error("Wrong lockStatus msg: %s" % lockStatus)
-
-            if self.curr_try < self.retries_num:
-                self.curr_try += 1
-                time.sleep(0.5)
-                self.logger.debug("Retrying: attempt %i" % self.curr_try)
-                self.curr_state = LOCK_STATE_OPERATING
-                for callback_func in self._callbacks:
-                    callback_func()
-                self.send_mqtt_command()
-            else:
-                self.logger.error("No more retries: command FAILED")
-                self.curr_state = LOCK_STATE_FAILED
-                for callback_func in self._callbacks:
-                    callback_func()
-                raise Exception(
-                    "Failed sending command: received status %s", lockStatus
-                )
-            return
-
-        lockEvents = (bArr[10] << 24) | (bArr[11] << 16) | (bArr[12] << 8) | bArr[13]
-        self.lockEvents = lockEvents
-        self.voltage = ((float)((bArr[14] << 8) | bArr[15])) * 0.01
-        self.curr_state = (bArr[16] >> 4) & 3
 
     def parse_MQTT_advert(self, mqtt_advert):
         self.logger.debug("Parsing advert msg: %s" % mqtt_advert)
@@ -335,10 +306,10 @@ class CustomMqttLockDevice:
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]
         new_state = (bArr[22] >> 4) & 3
         self.opensClockwise = (bArr[22] & 0x80) != 0
-        if self.curr_state < LOCK_STATE_OPERATING or self.lockEvents != lockEvents:
-            self.lockEvents = lockEvents
+        self.lockEvents = lockEvents
+        if self.curr_state != LOCK_STATE_FAILED:
             self.curr_state = new_state
-            if self.opensClockwise and self.curr_state is not LOCK_STATE_JAMMED:
+            if self.opensClockwise and self.curr_state != LOCK_STATE_JAMMED:
                 self.curr_state = 1 - self.curr_state
 
         z = False
