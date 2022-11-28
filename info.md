@@ -25,7 +25,7 @@ Supported devices (using an ESP32 device as a Wifi-to-Bluetooth bridge):
 
 Copy the airbnk folder and all of its contents into your Home Assistant's custom_components folder. This is often located inside of your /config folder. If you are running Hass.io, use SAMBA to copy the folder over. If you are running Home Assistant Supervised, the custom_components folder might be located at /usr/share/hassio/homeassistant. It is possible that your custom_components folder does not exist. If that is the case, create the folder in the proper location, and then copy the airbnk folder and all of its contents inside the newly created custom_components folder.
 
-Alternatively, you can install airbnk through HACS by adding this repository.
+Alternatively, you can install airbnk through HACS by adding this as a custom repository: press the three dots on the top right -> custom repositories -> type this URL in the Repository field and select Integration in the Category field.
 
 # Usage:
 
