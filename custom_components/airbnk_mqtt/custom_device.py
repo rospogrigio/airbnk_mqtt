@@ -236,8 +236,8 @@ class CustomMqttLockDevice:
             return
 
         msg_sign = payload["sign"]
-        self.logger.error("Received sign: %s" % msg_sign)
-        self.logger.error("Command sign: %s" % self.cmd["sign"])
+        self.logger.debug("Received sign: %s" % msg_sign)
+        self.logger.debug("Command sign: %s" % self.cmd["sign"])
         if msg_sign != self.cmd["sign"]:
             self.logger.error("Returning.")
             return
@@ -260,9 +260,9 @@ class CustomMqttLockDevice:
                 raise Exception("Failed sending command: returned %s", msg_state)
             return
         else:
+            self.parse_new_lockStatus(payload["lockStatus"])
             for callback_func in self._callbacks:
                 callback_func()
-
 
     async def operateLock(self, lock_dir):
         self.logger.debug("operateLock called (%s)" % lock_dir)
@@ -284,6 +284,18 @@ class CustomMqttLockDevice:
             BLEOpTopic % self._lockConfig[CONF_MQTT_TOPIC],
             json.dumps(self.cmd),
         )
+        
+    def parse_new_lockStatus(self, lockStatus):
+        self.logger.debug("Parsing new lockStatus: %s" % lockStatus)
+        bArr = bytearray.fromhex(lockStatus)
+        if bArr[0] != 0xAA or bArr[3] != 0x02 or bArr[4] != 0x04:
+            self.logger.error("Wrong lockStatus msg: %s" % lockStatus)
+            return
+
+        lockEvents = (bArr[10] << 24) | (bArr[11] << 16) | (bArr[12] << 8) | bArr[13]
+        self.lockEvents = max(self.lockEvents, lockEvents)
+        self.voltage = ((float)((bArr[14] << 8) | bArr[15])) * 0.01
+        self.curr_state = (bArr[16] >> 4) & 3
 
     def parse_MQTT_advert(self, mqtt_advert):
         self.logger.debug("Parsing advert msg: %s" % mqtt_advert)
@@ -306,7 +318,7 @@ class CustomMqttLockDevice:
         lockEvents = (bArr[18] << 24) | (bArr[19] << 16) | (bArr[20] << 8) | bArr[21]
         new_state = (bArr[22] >> 4) & 3
         self.opensClockwise = (bArr[22] & 0x80) != 0
-        self.lockEvents = lockEvents
+        self.lockEvents = max(self.lockEvents, lockEvents)
         if self.curr_state != LOCK_STATE_FAILED:
             self.curr_state = new_state
             if self.opensClockwise and self.curr_state != LOCK_STATE_JAMMED:
@@ -331,7 +343,6 @@ class CustomMqttLockDevice:
         self._lockData[SENSOR_TYPE_BATTERY] = self.battery_perc
         self._lockData[SENSOR_TYPE_VOLTAGE] = self.voltage
         self._lockData[SENSOR_TYPE_BATTERY_LOW] = self.isLowBattery
-        # print("LOCK: {}".format(self._lockData))
 
         return
 
