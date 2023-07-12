@@ -10,6 +10,7 @@ Supported devices (using an ESP32 device as a Wifi-to-Bluetooth bridge):
 - M300 (tested)
 - M500
 - M510 (tested)
+- M530 (tested)
 - M531 (tested)
 
 # Prerequisites:
