@@ -146,12 +146,16 @@ async def async_options_updated(hass, entry):
 async def async_unload_entry(hass, config_entry):
     """Unload a config entry."""
     _LOGGER.debug("Unloading %s %s", config_entry.entry_id, config_entry.data)
-    await asyncio.wait(
-        [
-            hass.config_entries.async_forward_entry_unload(config_entry, component)
-            for component in COMPONENT_TYPES
-        ]
-    )
+
+    # Create a list of coroutines to be awaited
+    tasks = [
+        hass.config_entries.async_forward_entry_unload(config_entry, component)
+        for component in COMPONENT_TYPES
+    ]
+
+    # Await each coroutine individually
+    await asyncio.gather(*tasks)
+
     for dev_id, device in hass.data[DOMAIN][AIRBNK_DEVICES].items():
         _LOGGER.debug("Unsubscribing %s", dev_id)
         await device.mqtt_unsubscribe()
