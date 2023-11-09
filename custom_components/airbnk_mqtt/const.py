@@ -58,6 +58,7 @@ SENSOR_TYPE_STATE = "state"
 SENSOR_TYPE_BATTERY = "battery"
 SENSOR_TYPE_VOLTAGE = "voltage"
 SENSOR_TYPE_LAST_ADVERT = "last_advert"
+SENSOR_TYPE_LOCK_EVENTS = "lock_events"
 SENSOR_TYPE_SIGNAL_STRENGTH = "signal_strength"
 
 SENSOR_TYPE_BATTERY_LOW = "battery_low"
@@ -90,8 +91,8 @@ SENSOR_TYPES = {
         CONF_DEVICE_CLASS: DEVICE_CLASS_SIGNAL_STRENGTH,
         CONF_UNIT_OF_MEASUREMENT: SIGNAL_STRENGTH_DECIBELS,
     },
-    # SENSOR_TYPE_LAST_ADVERT: {
-    #     CONF_NAME: "last advert",
-    #     CONF_TYPE: SENSOR_TYPE_LAST_ADVERT,
-    # },
+    SENSOR_TYPE_LOCK_EVENTS: {
+        CONF_NAME: "Lock events counter",
+        CONF_TYPE: SENSOR_TYPE_LOCK_EVENTS,
+    },
 }
