@@ -14,6 +14,7 @@ from .const import (
     SENSOR_TYPE_BATTERY_LOW,
     SENSOR_TYPE_VOLTAGE,
     SENSOR_TYPE_LAST_ADVERT,
+    SENSOR_TYPE_LOCK_EVENTS,
     SENSOR_TYPE_SIGNAL_STRENGTH,
     LOCK_STATE_LOCKED,
     LOCK_STATE_UNLOCKED,
@@ -343,6 +344,7 @@ class CustomMqttLockDevice:
         self._lockData[SENSOR_TYPE_BATTERY] = self.battery_perc
         self._lockData[SENSOR_TYPE_VOLTAGE] = self.voltage
         self._lockData[SENSOR_TYPE_BATTERY_LOW] = self.isLowBattery
+        self._lockData[SENSOR_TYPE_LOCK_EVENTS] = self.lockEvents
 
         return
 
