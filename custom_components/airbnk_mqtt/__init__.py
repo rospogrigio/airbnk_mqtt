@@ -146,7 +146,7 @@ async def async_options_updated(hass, entry):
 async def async_unload_entry(hass, config_entry):
     """Unload a config entry."""
     _LOGGER.debug("Unloading %s %s", config_entry.entry_id, config_entry.data)
-    await asyncio.create_task(asyncio.wait(
+    await asyncio.wait(asyncio.create_task(
         [
             hass.config_entries.async_forward_entry_unload(config_entry, component)
             for component in COMPONENT_TYPES
