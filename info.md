@@ -61,3 +61,4 @@ As a consequence, the Cover entity is used being deemed more suitable, because i
 # Thanks to:
 
 This code is based on @nourmehdi 's great work, in finding a way to sniff the traffic and retrieve the token and decompile the app in order to find out the lock codes generation algorithm. This integration would probably not exist without his pioneering and support.
+Huge contribution also came from @formatBCE, who created the custom firmware for ESP32 devices, and provided great support.
