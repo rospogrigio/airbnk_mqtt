@@ -1,7 +1,7 @@
 """Support for Airbnk locks, treated as covers."""
 import logging
 
-from homeassistant.components.cover import SUPPORT_CLOSE, SUPPORT_OPEN, CoverEntity
+from homeassistant.components.cover import CoverEntity, CoverEntityFeature
 
 from .const import (
     DOMAIN as AIRBNK_DOMAIN,
@@ -64,8 +64,7 @@ class AirbnkLock(CoverEntity):
     @property
     def supported_features(self):
         """Flag supported features."""
-        supported_features = SUPPORT_OPEN | SUPPORT_CLOSE
-        return supported_features
+        return CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE
 
     @property
     def unique_id(self):
@@ -108,7 +107,7 @@ class AirbnkLock(CoverEntity):
         """Return if the cover is closed or not."""
         return None
 
-    async def async_open_cover(self, **kwargs):
+    async def async_open_cover(self, **kwargs): 
         """Open the cover."""
         if self._device.curr_state == LOCK_STATE_OPERATING:
             _LOGGER.warning("Operation already in progress: please wait")
@@ -118,7 +117,7 @@ class AirbnkLock(CoverEntity):
         _LOGGER.debug("Launching command to open")
         await self._device.operateLock(1)
 
-    async def async_close_cover(self, **kwargs):
+    async def async_close_cover(self, **kwargs): 
         """Close cover."""
         if self._device.curr_state == LOCK_STATE_OPERATING:
             _LOGGER.warning("Operation already in progress: please wait")
