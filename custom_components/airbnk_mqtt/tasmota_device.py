@@ -2,6 +2,7 @@ from __future__ import annotations
 import base64
 import json
 import time
+import asyncio
 from typing import Callable
 
 from cryptography.hazmat.backends import default_backend
@@ -279,7 +280,7 @@ class TasmotaMqttLockDevice:
 
                 if self.curr_try < self.retries_num:
                     self.curr_try += 1
-                    time.sleep(0.5)
+                    await asyncio.sleep(0.5)
                     self.logger.debug("Retrying: attempt %i" % self.curr_try)
                     self.curr_state = LOCK_STATE_OPERATING
                     for callback_func in self._callbacks:

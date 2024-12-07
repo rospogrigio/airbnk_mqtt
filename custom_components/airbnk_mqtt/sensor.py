@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 
 from homeassistant.helpers.entity import Entity
+from homeassistant.components.sensor import SensorDeviceClass
 
 from homeassistant.const import (
-    CONF_DEVICE_CLASS,
     CONF_ICON,
     CONF_NAME,
     CONF_TYPE,
@@ -106,7 +106,7 @@ class AirbnkSensor(Entity):
     @property
     def device_class(self):
         """Return the class of this device."""
-        return self._sensor.get(CONF_DEVICE_CLASS)
+        return self._sensor.get("device_class")
 
     @property
     def icon(self):
@@ -129,7 +129,6 @@ class AirbnkBatterySensor(AirbnkSensor):
     @property
     def state(self):
         """Return the state of the sensor."""
-        # print("VOLT: {} {}".format(self._monitored_attribute, self._device._lockData))
         self._device.check_availability()
         if self._monitored_attribute in self._device._lockData:
             return self._device._lockData[self._monitored_attribute]

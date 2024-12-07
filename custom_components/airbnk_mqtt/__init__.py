@@ -131,9 +131,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
     for component in COMPONENT_TYPES:
-        hass.async_create_task(
-            hass.config_entries.async_forward_entry_setup(entry, component)
-        )
+        await hass.config_entries.async_forward_entry_setup(entry, component)
     return True
 
 
@@ -161,8 +159,6 @@ async def async_unload_entry(hass, config_entry):
         await device.mqtt_unsubscribe()
 
     hass.data[DOMAIN].pop(AIRBNK_DEVICES)
-    # if not hass.data[DOMAIN]:
-    #     hass.data.pop(DOMAIN)
     _LOGGER.debug("...done")
     return True
 

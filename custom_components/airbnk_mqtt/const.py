@@ -1,17 +1,15 @@
 """Constants for Airbnk MQTT integration."""
 
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import (
     CONF_DEVICE_CLASS,
     CONF_TOKEN,
     CONF_NAME,
     CONF_TYPE,
     CONF_UNIT_OF_MEASUREMENT,
-    DEVICE_CLASS_BATTERY,
-    DEVICE_CLASS_VOLTAGE,
-    DEVICE_CLASS_SIGNAL_STRENGTH,
     PERCENTAGE,
-    ELECTRIC_POTENTIAL_VOLT,
-    TIME_SECONDS,
+    UnitOfElectricPotential,
+    UnitOfTime,
     SIGNAL_STRENGTH_DECIBELS,
 )
 
@@ -36,7 +34,7 @@ AIRBNK_DATA = "airbnk_data"
 AIRBNK_API = "airbnk_api"
 AIRBNK_DEVICES = "airbnk_devices"
 AIRBNK_DISCOVERY_NEW = "airbnk_discovery_new_{}"
-DEFAULT_RETRIES_NUM = 0
+DEFAULT_RETRIES_NUM = 10
 
 TIMEOUT = 60
 
