@@ -49,14 +49,17 @@ async def async_setup(hass, config):
 
         current_entries = hass.config_entries.async_entries(DOMAIN)
 
+        # Create tasks for each config entry reload
         reload_tasks = [
             hass.config_entries.async_reload(entry.entry_id)
             for entry in current_entries
         ]
 
+        # Await all tasks concurrently
         await asyncio.gather(*reload_tasks)
         _LOGGER.debug("RELOAD DONE")
 
+    # Register the reload service for admin use
     hass.helpers.service.async_register_admin_service(
         DOMAIN,
         SERVICE_RELOAD,
@@ -118,6 +121,8 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
     device_configs = entry.data[CONF_DEVICE_CONFIGS]
     entry.add_update_listener(async_options_updated)
     _LOGGER.debug("DEVICES ARE %s", device_configs)
+
+    # Create lock devices and subscribe to MQTT
     lock_devices = {}
     for dev_id, dev_config in device_configs.items():
         if dev_config[CONF_DEVICE_MQTT_TYPE] == CONF_CUSTOM_MQTT:
@@ -128,8 +133,10 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
             )
         await lock_devices[dev_id].mqtt_subscribe()
 
+    # Store lock devices in hass.data
     hass.data[DOMAIN] = {AIRBNK_DEVICES: lock_devices}
 
+    # Setup components like binary_sensor, cover, etc.
     for component in COMPONENT_TYPES:
         hass.async_create_task(
             hass.config_entries.async_forward_entry_setup(entry, component)
@@ -139,6 +146,7 @@ async def async_setup_entry(hass: HomeAssistantType, entry: ConfigEntry):
 
 async def async_options_updated(hass, entry):
     """Triggered by config entry options updates."""
+    # Update options for each device
     for dev_id, device in hass.data[DOMAIN][AIRBNK_DEVICES].items():
         device.set_options(entry.options)
 
@@ -147,26 +155,26 @@ async def async_unload_entry(hass, config_entry):
     """Unload a config entry."""
     _LOGGER.debug("Unloading %s %s", config_entry.entry_id, config_entry.data)
 
-    # Create a list of coroutines to be awaited
+    # Create a list of coroutines to be awaited for unloading components
     tasks = [
         hass.config_entries.async_forward_entry_unload(config_entry, component)
         for component in COMPONENT_TYPES
     ]
 
-    # Await each coroutine individually
+    # Await all tasks concurrently
     await asyncio.gather(*tasks)
 
+    # Unsubscribe from MQTT for each device
     for dev_id, device in hass.data[DOMAIN][AIRBNK_DEVICES].items():
         _LOGGER.debug("Unsubscribing %s", dev_id)
         await device.mqtt_unsubscribe()
 
+    # Remove device data from hass
     hass.data[DOMAIN].pop(AIRBNK_DEVICES)
-    # if not hass.data[DOMAIN]:
-    #     hass.data.pop(DOMAIN)
     _LOGGER.debug("...done")
     return True
 
 
 async def airbnk_api_setup(hass, host, key, uuid, password):
-    """Create a Airbnk instance only once."""
-    return
+    """Create an Airbnk instance only once."""
+    return  # Your logic for setting up the Airbnk API
