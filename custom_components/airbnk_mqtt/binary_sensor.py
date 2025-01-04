@@ -5,9 +5,7 @@ import logging
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
-from homeassistant.const import (
-    DEVICE_CLASS_BATTERY,
-)
+from homeassistant.components.sensor import SensorDeviceClass  # Import SensorDeviceClass
 
 from .const import (
     DOMAIN as AIRBNK_DOMAIN,
@@ -19,14 +17,9 @@ _LOGGER = logging.getLogger(__name__)
 
 SENSOR_ICON = "hass:post-outline"
 
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Old way of setting up the platform.
-
-    Can only be called when a user accidentally mentions the platform in their
-    config. But even in that case it would have been ignored.
-    """
-
+    """Old way of setting up the platform."""
+    # Implementation remains unchanged
 
 async def async_setup_entry(hass, entry, async_add_entities):
     """Set up Airbnk sensors based on config_entry."""
@@ -35,7 +28,6 @@ async def async_setup_entry(hass, entry, async_add_entities):
         sensor = AirbnkBinarySensor(hass, device, SENSOR_TYPE_BATTERY_LOW)
         sensors.append(sensor)
     async_add_entities(sensors)
-
 
 class AirbnkBinarySensor(BinarySensorEntity):
     """Representation of a Binary Sensor."""
@@ -50,7 +42,6 @@ class AirbnkBinarySensor(BinarySensorEntity):
 
     async def async_added_to_hass(self):
         """Run when this Entity has been added to HA."""
-        # Sensors should also register callbacks to HA when their state changes
         self._device.register_callback(self.async_write_ha_state)
 
     @property
@@ -84,7 +75,7 @@ class AirbnkBinarySensor(BinarySensorEntity):
     @property
     def device_class(self):
         """Return the class of this device."""
-        return DEVICE_CLASS_BATTERY
+        return SensorDeviceClass.BATTERY  # Updated to use SensorDeviceClass
 
     @property
     def icon(self):
@@ -93,4 +84,4 @@ class AirbnkBinarySensor(BinarySensorEntity):
 
     async def async_update(self):
         """Retrieve latest state."""
-        # _LOGGER.debug("async_update")
+        # Implementation remains unchanged
