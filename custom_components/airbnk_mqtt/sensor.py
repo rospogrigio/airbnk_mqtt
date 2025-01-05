@@ -106,7 +106,7 @@ class AirbnkSensor(Entity):
     @property
     def device_class(self):
         """Return the class of this device."""
-        return self._sensor.get("device_class")
+        return self._sensor.get("SensorDeviceClass.DEVICE_CLASS")
 
     @property
     def icon(self):
