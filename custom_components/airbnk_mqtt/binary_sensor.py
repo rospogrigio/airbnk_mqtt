@@ -5,9 +5,7 @@ import logging
 from homeassistant.components.binary_sensor import (
     BinarySensorEntity,
 )
-from homeassistant.components.sensor import (
-    SensorDeviceClass
-)
+from homeassistant.components.sensor import SensorDeviceClass
 
 from .const import (
     DOMAIN as AIRBNK_DOMAIN,
